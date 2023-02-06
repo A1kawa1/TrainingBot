@@ -1,5 +1,5 @@
 from django import forms
-from bot.models import Guide
+from model.models import Guide
 from django.core.exceptions import ValidationError
 
 
@@ -10,17 +10,26 @@ class GuideForm(forms.Form):
         for i in range(len(question)):
             field_name = f'answer{i+1}'
             lable = question[i].question
-            self.fields[field_name] = forms.IntegerField(
-                required=True,
-                label=lable
-            )
+            help_text = question[i].advice
+            if help_text != '':
+                self.fields[field_name] = forms.IntegerField(
+                    required=True,
+                    label=lable,
+                    help_text=help_text,
+                    widget=forms.NumberInput(attrs={'style': 'width:20ch'})
+                )
+            else:
+                self.fields[field_name] = forms.IntegerField(
+                    required=True,
+                    label=lable,
+                    widget=forms.NumberInput(attrs={'style': 'width:20ch'})
+                )
 
     def clean(self):
         question = Guide.objects.all()
         data = self.cleaned_data
         for i in range(len(question)):
             field_name = f'answer{i+1}'
-            print(field_name, data.get(field_name), question[i].answer1, question[i].answer2)
             if not (question[i].answer1 <= data.get(field_name) <= question[i].answer2):
                 raise ValidationError('Неверный ответ')
         return data

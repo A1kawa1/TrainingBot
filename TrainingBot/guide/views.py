@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
-from bot.form import GuideForm
-from bot.models import User
+from model.form import GuideForm
+from model.models import User
 
 
 def guide(request, id, guid):
@@ -20,6 +20,11 @@ def guide(request, id, guid):
         if form.is_valid():
             return redirect('guide:success')
             #now in the object cd, you have the form as a dictionary.
+        # else:
+        #     response = {}
+        #     for k in form.errors:
+        #         response[k] = form.errors[k][0]
+        #     print(response)
     context = {
         'form': form
     }

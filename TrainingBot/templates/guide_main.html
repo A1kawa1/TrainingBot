@@ -1,7 +1,46 @@
-<h1>asdasd</h1>
-<br />
-
-<form method="post">
-  {% csrf_token %} {{form.as_p}}
-  <button type="submit">Submit</button>
-</form>
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="msapplication-TileColor" content="#000" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.1/css/bootstrap.min.css" integrity="sha512-T584yQ/tdRR5QwOpfvDfVQUidzfgc2339Lc8uBDtcp/wYu80d7jwBgAxbyMh0a9YM9F8N3tdErpFI8iaGx6x5g==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <title>мастер</title>
+  </head>
+  <body>
+    {% load user_filters %}
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-md-6 p-5">
+          <div class="card">
+            <div class="card-body">      
+              <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}         
+                {{ form.non_field_errors }} 
+                  {% for field in form %}
+                  <div class="form-group">
+                    {% if field.help_text %}
+                      <br>
+                      <label>Совет!</label><br>
+                      <label>{{ field.help_text|safe }}</label>
+                      <br>
+                    {% endif %}
+                    <label>{{ field.label|safe }}</label>
+                    {{ field|addclass:'form-control' }}
+                  </div>  
+                  {% endfor %}  
+                <div class="d-flex justify-content-start">
+                  <button type="submit" class="btn btn-primary">
+                      Сохранить
+                  </button>
+                </div>
+              </form>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

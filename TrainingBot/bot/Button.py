@@ -3,7 +3,7 @@ import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
 from bot.config import ACTIVITY, TYPE, TOKEN
 
-from bot.models import *
+from model.models import *
 
 
 bot = telebot.TeleBot(TOKEN)

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-import telebot
+import telebot, schedule
 from threading import Thread
 from time import sleep
 from bot.SqlMain import *
@@ -7,10 +7,20 @@ from bot.InlineKeyboard import *
 from bot.Button import *
 from bot.config import ACTIVITY, TYPE, TOKEN
 
+
 class Command(BaseCommand):
     help = 'Запуск тг бота'
     def handle(self, *args, **options):
         bot = telebot.TeleBot(TOKEN)
+        
+        @bot.edited_message_handler(func=lambda _: True)
+        def edit(message):
+            id = message.from_user.id
+            bot.send_message(
+                chat_id=id,
+                text=f'Вы изменили сообщение на {message.text}'
+            )
+            print(message.text)
 
         @bot.message_handler(commands=['start'])
         def start(message):
@@ -746,7 +756,10 @@ class Command(BaseCommand):
                 )
                 bot.register_next_step_handler(call.message, change_cur_DCI)
 
-
+        def test():
+            while True:
+                print(User.objects.all())
+                sleep(3)
         # def schedule_checker():
         #     while True:
         #         schedule.run_pending()
@@ -784,4 +797,5 @@ class Command(BaseCommand):
         # schedule.every().day.at('00:00').do(refresh_info_user)
         # Thread(target=schedule_checker).start() 
         # Thread(target=update_period).start()
+        Thread(target=test).start()
         bot.polling(timeout=600)

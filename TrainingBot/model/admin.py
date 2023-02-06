@@ -1,5 +1,5 @@
 from django.contrib import admin
-from bot.models import *
+from model.models import *
 
 
 class UserAdmin(admin.ModelAdmin):
@@ -9,7 +9,7 @@ class UserAdmin(admin.ModelAdmin):
 
 
 class GuideAdmin(admin.ModelAdmin):
-    list_display = ('advice', 'question', 'answer1', 'answer2')
+    list_display = ('id', 'advice', 'question', 'answer1', 'answer2')
     search_fields = ('advice',)
     empty_value_display = '-пусто-'
 

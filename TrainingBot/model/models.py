@@ -26,7 +26,7 @@ class InfoUser(models.Model):
     height = models.IntegerField(blank=True, null=True, default=0)
     gender = models.TextField(blank=True, null=True, default='None')
     ideal_weight = models.TextField(blank=True, null=True, default=0)
-    user = models.OneToOneField('User', models.CASCADE, db_column='user')
+    user = models.ForeignKey('User', models.CASCADE, related_name='info')
 
 
 class TargetUser(models.Model):
@@ -40,7 +40,7 @@ class TargetUser(models.Model):
     cur_day_dci = models.IntegerField(blank=True, null=True, default=0)
     cur_weight = models.IntegerField(blank=True, null=True, default=0)
     target_weight = models.IntegerField(blank=True, null=True, default=0)
-    user = models.ForeignKey('User', models.CASCADE)
+    user = models.ForeignKey('User', models.CASCADE, related_name='target')
     programm_ready = models.BooleanField(blank=True, null=True)
 
 
@@ -58,6 +58,6 @@ class UserFood(models.Model):
 
 
 class UserStageGuide(models.Model):
-    user = models.ForeignKey(User, models.CASCADE)
+    user = models.ForeignKey(User, models.CASCADE, related_name='stage')
     stage = models.IntegerField(blank=True, null=True, default=0)
     question = models.IntegerField(blank=True, null=True, default=1)

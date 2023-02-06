@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.generic import TemplateView
-from guide.views import guide, send_form
+from guide.views import guide
 
 
 app_name = 'guide'

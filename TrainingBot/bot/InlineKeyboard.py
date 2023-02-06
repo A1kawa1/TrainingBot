@@ -1,7 +1,7 @@
 import telebot
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
-from bot.models import User, UserFood
+from model.models import User, UserFood
 
 
 def create_InlineKeyboard(user):
