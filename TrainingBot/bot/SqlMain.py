@@ -1,4 +1,4 @@
-import telebot, sqlite3
+import telebot
 import bot.Button as Button
 import bot.InlineKeyboard as InlineKeyboard
 from bot.config import TOKEN

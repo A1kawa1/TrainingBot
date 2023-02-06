@@ -6,6 +6,7 @@
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
+import uuid
 
 
 class Food(models.Model):
@@ -48,6 +49,7 @@ class User(models.Model):
     first_name = models.TextField(blank=True, null=True)
     last_name = models.TextField(blank=True, null=True)
     username = models.TextField(blank=True, null=True)
+    guid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
 
 class UserFood(models.Model):

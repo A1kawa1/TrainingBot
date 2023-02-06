@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-import telebot, sqlite3
+import telebot
 from threading import Thread
 from time import sleep
 from bot.SqlMain import *

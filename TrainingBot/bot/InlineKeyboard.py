@@ -1,4 +1,4 @@
-import telebot, sqlite3
+import telebot
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
 from bot.models import User, UserFood

@@ -1,3 +1,7 @@
 <h1>asdasd</h1>
-<br>
-<a href="{% url 'guide:send_form' %}" class="btn btn-primary">Отправить форму</a>
+<br />
+
+<form method="post">
+  {% csrf_token %} {{form.as_p}}
+  <button type="submit">Submit</button>
+</form>
