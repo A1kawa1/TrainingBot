@@ -33,4 +33,3 @@ class GuideForm(forms.Form):
             if not (question[i].answer1 <= data.get(field_name) <= question[i].answer2):
                 raise ValidationError('Неверный ответ')
         return data
-        

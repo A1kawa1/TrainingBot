@@ -372,6 +372,22 @@ class Command(BaseCommand):
                     )
                 )
                 bot.register_next_step_handler(message, change_cur_DCI)  
+            elif message.text == 'Начать сбор данных':
+                keyboard = telebot.types.ReplyKeyboardMarkup(True)
+                keyboard.add('Добавить блюдо', 'Что есть в моем рационе',
+                             'Я поел', 'Текущие приемы пищи', 'Завершить сбор данных')
+                bot.send_message(
+                    chat_id=id,
+                    text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',
+                    reply_markup=keyboard
+                )
+            elif message.text == 'Текущие приемы пищи':
+                target = TargetUser.objects.get(user=id)
+                bot.send_message(
+                    chat_id=id,
+                    text=f'Сегодня вы поели на {target.cur_day_dci}',
+                    reply_markup=cur_day_food(id)
+                )
 
 
         @bot.callback_query_handler(func=lambda call: True)
@@ -616,23 +632,53 @@ class Command(BaseCommand):
                     reply_markup=markup
                 )
                 bot.register_next_step_handler(call.message, get_food)
-            elif check_int(call.data):
+            elif call.data.startswith('food_'):
                 change_cur_day_DCI(call)
             elif call.data == 'own_food':
-                bot.delete_message(
-                    chat_id=id,
-                    message_id=call.message.message_id
-                )
                 markup.add(telebot.types.InlineKeyboardButton(
                     text='Закрыть',
                     callback_data='close'
                 ))
+                bot.delete_message(
+                    chat_id=id,
+                    message_id=call.message.message_id
+                )
                 bot.send_message(
                     chat_id=id,
                     text='Введите кол-во кКл, которое вы съели',
                     reply_markup=markup
                 )
                 bot.register_next_step_handler(call.message, change_cur_day_DCI, True)
+            elif call.data.startswith('detail_'):
+                _, food_id = call.data.split('_')
+                bot.delete_message(
+                    chat_id=id,
+                    message_id=call.message.message_id
+                )
+                detail_food(food_id)
+            elif call.data.startswith('delete_day_dci_'):
+                food_id = call.data[15:]
+                bot.delete_message(
+                    chat_id=id,
+                    message_id=call.message.message_id
+                )
+                change_cur_day_DCI(call=food_id, flag=id, delete=True)
+            elif call.data.startswith('change_day_dci_'):
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
+                bot.delete_message(
+                    chat_id=id,
+                    message_id=call.message.message_id
+                )
+                bot.send_message(
+                    chat_id=id,
+                    text='Введите новое кол-во кКл',
+                    reply_markup=markup
+                )
+                food_id = call.data[15:]
+                bot.register_next_step_handler(call.message, change_day_DCI, food_id)
             elif call.data in TYPE:
                 target_user = TargetUser.objects.get(user=id)
                 target_user.type = call.data
@@ -755,11 +801,20 @@ class Command(BaseCommand):
                     )
                 )
                 bot.register_next_step_handler(call.message, change_cur_DCI)
+            elif call.data == 'start_get_cur_DCI':
+                keyboard = telebot.types.ReplyKeyboardMarkup(True)
+                keyboard.add('Добавить блюдо', 'Что есть в моем рационе',
+                             'Я поел', 'Текущие приемы пищи', 'Завершить сбор данных')
+                bot.send_message(
+                    chat_id=id,
+                    text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',
+                    reply_markup=keyboard
+                )
 
-        def test():
-            while True:
-                print(User.objects.all())
-                sleep(3)
+        # def test():
+        #     while True:
+        #         print(User.objects.all())
+        #         sleep(3)
         # def schedule_checker():
         #     while True:
         #         schedule.run_pending()
@@ -797,5 +852,5 @@ class Command(BaseCommand):
         # schedule.every().day.at('00:00').do(refresh_info_user)
         # Thread(target=schedule_checker).start() 
         # Thread(target=update_period).start()
-        Thread(target=test).start()
+        # Thread(target=test).start()
         bot.polling(timeout=600)

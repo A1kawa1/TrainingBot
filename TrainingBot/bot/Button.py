@@ -1,3 +1,4 @@
+from django.db.models import Sum
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
@@ -290,17 +291,43 @@ def change_cur_DCI(message):
         chat_id=id,
         text='Вы изменили текущий DCI'
     )
-    
 
 
-def change_cur_day_DCI(call, flag=False):
+def change_cur_day_DCI(call, flag=False, delete=False, change=False):
+    if change:
+        user = User.objects.get(id=call)
+        calories = user.day_food.all().aggregate(Sum('calories'))
+
+        target_user = TargetUser.objects.get(user=call)
+        target_user.cur_day_dci = calories.get('calories__sum')
+        target_user.save()
+        return
+
+    if delete:
+        food = UserDayFood.objects.get(id=call)
+        calories = food.calories
+        food.delete()
+
+        target_user = TargetUser.objects.get(user=flag)
+        target_user.cur_day_dci = target_user.cur_day_dci - calories
+        target_user.save()
+
+        bot.send_message(
+            chat_id=flag,
+            text=f'Вы удалили {calories}кКл'
+        )
+        return
+
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton(
         text='Попробовать снова',
         callback_data='own_food'
     ))
+    name = None
     if not flag:
-        data = (int(call.data), call.message.chat.id)
+        msg = call.data[5:]
+        name, calories = msg.split('_')
+        data = (int(calories), call.message.chat.id)
     else:
         if not check_int(call.text):
             bot.send_message(
@@ -321,8 +348,67 @@ def change_cur_day_DCI(call, flag=False):
     target_user.cur_day_dci = target_user.cur_day_dci + data[0]
     target_user.save()
 
+
+    food_user = UserDayFood(
+        user=User.objects.get(id=data[1]),
+        name=name,
+        calories=data[0]
+    )
+    food_user.save()
+
     bot.send_message(
         chat_id=data[1],
-        text=(f'Вы сегодня поели на {target_user.cur_day_dci} кКл, '
-              f'осталось {target_user.cur_week_noraml_dci - target_user.cur_day_dci}')
+        text=f'Вы сегодня поели на {target_user.cur_day_dci} кКл'
+    )
+
+
+def detail_food(food_id):
+    food = UserDayFood.objects.get(id=food_id)
+
+    if food.name is None:
+        text=f'{food.calories}кКл'
+    else:
+        text=f'{food.name} {food.calories}кКл'
+
+    bot.send_message(
+        chat_id=food.user.id,
+        text=text,
+        reply_markup=InlineKeyboard.detail_day_food(food_id)
+    )
+
+
+def change_day_DCI(message, food_id):
+    if message.from_user.is_bot:
+        id = message.chat.id
+    else:
+        id = message.from_user.id
+
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Попробовать снова',
+        callback_data=f'detail_{food_id}'
+    ))
+    if not check_int(message.text):
+        bot.send_message(
+            chat_id=id,
+            text='Вводите целое число, повторите попытку',
+            reply_markup=markup
+        )
+        return
+    if int(message.text) < 0:
+        bot.send_message(
+            chat_id=id,
+            text='Вводите положительное число, повторите попытку',
+            reply_markup=markup
+        )
+        return
+
+    food = UserDayFood.objects.get(id=food_id)
+    food.calories = int(message.text)
+    food.save()
+
+    change_cur_day_DCI(call=id, change=True)
+    bot.send_message(
+        chat_id=id,
+        text='Вы изменили калорийность'
     )

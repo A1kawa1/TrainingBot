@@ -1,7 +1,7 @@
 import telebot
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
-from model.models import User, UserFood
+from model.models import User, UserFood, UserDayFood
 
 
 def create_InlineKeyboard(user):
@@ -32,7 +32,7 @@ def create_InlineKeyboard_food(id):
         for food in foods:
             markup.add(telebot.types.InlineKeyboardButton(
                 text=f'{food.food.name} - {food.food.calories}',
-                callback_data=food.food.calories
+                callback_data=f'food_{food.food.name}_{food.food.calories}'
             ))
     markup.add(telebot.types.InlineKeyboardButton(
         text='Выбрать свое кол-во кКл',
@@ -129,6 +129,45 @@ def create_InlineKeyboard_target(message, flag=False):
     return markup
 
 
+def cur_day_food(id):
+    markup = telebot.types.InlineKeyboardMarkup()
+    user = User.objects.get(id=id)
+    foods = UserDayFood.objects.filter(user=user).values_list('id','name', 'calories')
+    for id, name, calories in list(foods):
+        if name is None:
+            text=f'{calories}кКл'
+        else:
+            text=f'{name} {calories}кКл'
+
+        markup.add(telebot.types.InlineKeyboardButton(
+            text=text,
+            callback_data=f'detail_{id}'
+        ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    ))
+    return markup
+
+
+def detail_day_food(food_id):
+    markup = telebot.types.InlineKeyboardMarkup()
+    food = UserDayFood.objects.get(id=food_id)
+    if food.name is None:
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Изменить',
+            callback_data=f'change_day_dci_{food_id}'
+        ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Удалить',
+        callback_data=f'delete_day_dci_{food_id}'
+    ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    ))
+    return markup
+
 # def create_InlineKeyboard_programm(message):
 #     markup = telebot.types.InlineKeyboardMarkup()
 #     target = SqlMain.get_programm(message)
@@ -155,6 +194,8 @@ def create_keyboard_stage(id):
     if stage == 0:
         keyboard.add('Мои данные')
     elif stage == 1:
+        keyboard.add('Мои данные', 'Моя цель')
+    elif stage == 2:
         keyboard.add('Мои данные', 'Моя цель')
     elif stage == 3:
         keyboard.add('Мои данные', 'Моя цель', 'Мастер обучения',

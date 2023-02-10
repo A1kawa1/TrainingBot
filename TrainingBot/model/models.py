@@ -61,3 +61,9 @@ class UserStageGuide(models.Model):
     user = models.ForeignKey(User, models.CASCADE, related_name='stage')
     stage = models.IntegerField(blank=True, null=True, default=0)
     question = models.IntegerField(blank=True, null=True, default=1)
+
+
+class UserDayFood(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='day_food')
+    name = models.TextField(blank=True, null=True)
+    calories = models.IntegerField(blank=True, null=True)
