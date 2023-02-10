@@ -363,13 +363,19 @@ class Command(BaseCommand):
                 )
                 print('end')
             elif message.text == 'Я знаю сколько я ем сейчас':
+                markup = telebot.types.InlineKeyboardMarkup()
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
                 bot.send_message(
                     chat_id=id,
                     text=(
                         'Укажите сколько калорий вы съедаете сейчас в сутки и '
                         'мы рассчитаем программу управления весом для '
                         'достижения достигнутой цели.'
-                    )
+                    ),
+                    reply_markup=markup
                 )
                 bot.register_next_step_handler(message, change_cur_DCI)  
             elif message.text == 'Начать сбор данных':
@@ -792,13 +798,18 @@ class Command(BaseCommand):
                     reply_markup=markup
                 )
             elif call.data == 'get_cur_DCI':
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
                 bot.send_message(
                     chat_id=id,
                     text=(
                         'Укажите сколько калорий вы съедаете сейчас в сутки и '
                         'мы рассчитаем программу управления весом для '
                         'достижения достигнутой цели.'
-                    )
+                    ),
+                    reply_markup=markup
                 )
                 bot.register_next_step_handler(call.message, change_cur_DCI)
             elif call.data == 'start_get_cur_DCI':
