@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 import telebot, schedule
+from datetime import datetime
 from threading import Thread
 from time import sleep
 from bot.SqlMain import *
@@ -244,6 +245,85 @@ class Command(BaseCommand):
             #         print(question)
             #         check_answer(message, question)
 
+        def stage_4_calories(message):
+            id = message.from_user.id
+            if id not in get_user('id'):
+                return False
+
+            if get_stage(id) == 4:
+                tmp = message.text.split('+')
+                if len(tmp) == 1:
+                    id_space = message.text.find(' ')
+
+                    try:
+                        if id_space == -1:
+                            calories = int(message.text)
+                        else:
+                            calories = message.text[:id_space]
+
+                        if check_int(calories):
+                            return True
+                    except:
+                        return False
+                if check_int(tmp[0]):
+                    return True
+            return False
+
+
+        @bot.message_handler(func=stage_4_calories)
+        def calories(message):
+            tmp = message.text.split('+')
+            if len(tmp) == 1:
+                id_space = message.text.find(' ')
+
+                if id_space == -1:
+                    calories = int(message.text)
+                    name = None
+                else:
+                    calories = message.text[:id_space]
+                    name = message.text[id_space+1:].strip()
+                if not Button.check_int(calories):
+                    bot.send_message(
+                        chat_id=id,
+                        text='Вводите согласно формату, повторите попытку',
+                    )
+                    return
+                data = (int(calories), message.from_user.id)
+            else:
+                name = None
+                tmp = list(map(lambda x: x.strip(), tmp))
+                id_space = tmp[-1].find(' ')
+
+                if id_space == -1:
+                    calories = tmp[:-1] + [tmp[-1]]
+                    name = None
+                else:
+                    calories = tmp[:-1] + [tmp[-1][:id_space]]
+                    name = tmp[-1][id_space+1:].strip()
+
+                try:
+                    data = (sum(list(map(int, calories))), message.from_user.id)
+                except ValueError:
+                    bot.send_message(
+                        chat_id=data[1],
+                        text=f'Простите, но мы не смогли распознать ваши данные'
+                    )
+
+            food_user = UserDayFood(
+                user=User.objects.get(id=data[1]),
+                calories=data[0],
+                name=name,
+                time=datetime.fromtimestamp(message.date)
+            )
+            food_user.save()
+
+            calories = update_result_day_DCI(message)
+
+            bot.send_message(
+                chat_id=data[1],
+                text=f'Вы сегодня поели на {calories} кКл'
+            )
+
 
         @bot.message_handler(content_types='text')
         def info(message):
@@ -252,18 +332,18 @@ class Command(BaseCommand):
             if id not in get_user('id'):
                 print('not user')
                 start(message)
-            elif message.text == 'Добавить блюдо':
-                markup = telebot.types.InlineKeyboardMarkup()
-                markup.add(telebot.types.InlineKeyboardButton(
-                    text='Закрыть',
-                    callback_data='close'
-                ))
-                bot.send_message(
-                    chat_id=id,
-                    text='Отправьте название и каллорийность\nв виде: блюдо - кКл\n(несколько блюд вводите с новой строки)',
-                    reply_markup=markup
-                )
-                bot.register_next_step_handler(message, get_food)
+            # elif message.text == 'Добавить блюдо':
+            #     markup = telebot.types.InlineKeyboardMarkup()
+            #     markup.add(telebot.types.InlineKeyboardButton(
+            #         text='Закрыть',
+            #         callback_data='close'
+            #     ))
+            #     bot.send_message(
+            #         chat_id=id,
+            #         text='Отправьте название и каллорийность\nв виде: кКл блюдо\n(несколько блюд вводите с новой строки)',
+            #         reply_markup=markup
+            #     )
+            #     bot.register_next_step_handler(message, get_food)
             elif message.text == 'Что есть в моем рационе':
 
                 user = User.objects.get(id=id)
@@ -289,7 +369,7 @@ class Command(BaseCommand):
                     text='Укажите следующие данные',
                     reply_markup=create_InlineKeyboard_user_info(message)
                 )
-            elif message.text == 'Я поел':
+            elif message.text == 'Меню':
                 bot.send_message(
                     chat_id=id,
                     text='Выберите что вы поели',
@@ -380,19 +460,33 @@ class Command(BaseCommand):
                 bot.register_next_step_handler(message, change_cur_DCI)  
             elif message.text == 'Начать сбор данных':
                 keyboard = telebot.types.ReplyKeyboardMarkup(True)
-                keyboard.add('Добавить блюдо', 'Что есть в моем рационе',
-                             'Я поел', 'Текущие приемы пищи', 'Завершить сбор данных')
+
+                user_stage_guide = UserStageGuide.objects.get(user=id)
+                user_stage_guide.stage = 4
+                user_stage_guide.save()
+
+                keyboard.add('Мастер обучения', 'Меню',
+                             'Текущие приемы пищи', 'Завершить сбор данных')
                 bot.send_message(
                     chat_id=id,
                     text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',
                     reply_markup=keyboard
                 )
             elif message.text == 'Текущие приемы пищи':
-                target = TargetUser.objects.get(user=id)
+
+                user = User.objects.get(id=id)
+                cur_time = datetime.fromtimestamp(message.date)
+
+                calories = user.day_food.filter(
+                    time__year=cur_time.year,
+                    time__month=cur_time.month,
+                    time__day=cur_time.day
+                ).aggregate(Sum('calories')).get('calories__sum')
+
                 bot.send_message(
                     chat_id=id,
-                    text=f'Сегодня вы поели на {target.cur_day_dci}',
-                    reply_markup=cur_day_food(id)
+                    text=f'Сегодня вы поели на {calories}',
+                    reply_markup=cur_day_food(id, message.date)
                 )
 
 
@@ -494,6 +588,13 @@ class Command(BaseCommand):
                 print('not user')
                 start(call.message)
             elif call.data == 'login':
+                if get_stage(id) != 0:
+                    bot.send_message(
+                        chat_id=id,
+                        text='Давайте же продолжим работу',
+                        reply_markup=create_keyboard_stage(id)
+                    )
+                    return     
                 bot.send_message(
                     chat_id=id,
                     text=('Мы рады, что вы присоединились к нам. '
@@ -634,27 +735,27 @@ class Command(BaseCommand):
                 ))
                 bot.send_message(
                     chat_id=id,
-                    text='Отправьте название и каллорийность\nв виде: блюдо - кКл\n(несколько блюд вводите с новой строки)',
+                    text='Отправьте название и каллорийность\nв виде: кКл блюдо\n(несколько блюд вводите с новой строки)',
                     reply_markup=markup
                 )
                 bot.register_next_step_handler(call.message, get_food)
             elif call.data.startswith('food_'):
-                change_cur_day_DCI(call)
-            elif call.data == 'own_food':
-                markup.add(telebot.types.InlineKeyboardButton(
-                    text='Закрыть',
-                    callback_data='close'
-                ))
-                bot.delete_message(
-                    chat_id=id,
-                    message_id=call.message.message_id
-                )
-                bot.send_message(
-                    chat_id=id,
-                    text='Введите кол-во кКл, которое вы съели',
-                    reply_markup=markup
-                )
-                bot.register_next_step_handler(call.message, change_cur_day_DCI, True)
+                add_from_menu_day_DCI(call)
+            # elif call.data == 'own_food':
+            #     markup.add(telebot.types.InlineKeyboardButton(
+            #         text='Закрыть',
+            #         callback_data='close'
+            #     ))
+            #     bot.delete_message(
+            #         chat_id=id,
+            #         message_id=call.message.message_id
+            #     )
+            #     bot.send_message(
+            #         chat_id=id,
+            #         text='Введите кол-во кКл, которое вы съели',
+            #         reply_markup=markup
+            #     )
+            #     bot.register_next_step_handler(call.message, change_cur_day_DCI, True)
             elif call.data.startswith('detail_'):
                 _, food_id = call.data.split('_')
                 bot.delete_message(
@@ -668,7 +769,9 @@ class Command(BaseCommand):
                     chat_id=id,
                     message_id=call.message.message_id
                 )
-                change_cur_day_DCI(call=food_id, flag=id, delete=True)
+
+                delete_day_DCI(call.message, food_id)
+
             elif call.data.startswith('change_day_dci_'):
                 markup.add(telebot.types.InlineKeyboardButton(
                     text='Закрыть',
@@ -814,8 +917,13 @@ class Command(BaseCommand):
                 bot.register_next_step_handler(call.message, change_cur_DCI)
             elif call.data == 'start_get_cur_DCI':
                 keyboard = telebot.types.ReplyKeyboardMarkup(True)
-                keyboard.add('Добавить блюдо', 'Что есть в моем рационе',
-                             'Я поел', 'Текущие приемы пищи', 'Завершить сбор данных')
+                keyboard.add('Мастер обучения', 'Меню',
+                             'Текущие приемы пищи', 'Завершить сбор данных')
+                
+                user_stage_guide = UserStageGuide.objects.get(user=id)
+                user_stage_guide.stage = 4
+                user_stage_guide.save()
+
                 bot.send_message(
                     chat_id=id,
                     text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',

@@ -1,7 +1,8 @@
 import telebot
+from datetime import datetime
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
-from model.models import User, UserFood, UserDayFood
+from model.models import User, UserFood, UserDayFood, UserStageGuide
 
 
 def create_InlineKeyboard(user):
@@ -30,14 +31,22 @@ def create_InlineKeyboard_food(id):
 
     if foods.exists():
         for food in foods:
+            if food.food.name is None:
+                text = f'{food.food.calories}'
+            else:
+                text=f'{food.food.name} - {food.food.calories}'
             markup.add(telebot.types.InlineKeyboardButton(
-                text=f'{food.food.name} - {food.food.calories}',
+                text=text,
                 callback_data=f'food_{food.food.name}_{food.food.calories}'
             ))
     markup.add(telebot.types.InlineKeyboardButton(
-        text='Выбрать свое кол-во кКл',
-        callback_data='own_food'
+        text='Добавить блюдо',
+        callback_data='add_food'
     ))
+    # markup.add(telebot.types.InlineKeyboardButton(
+    #     text='Выбрать свое кол-во кКл',
+    #     callback_data='own_food'
+    # ))
     markup.add(telebot.types.InlineKeyboardButton(
         text='Закрыть',
         callback_data='close'
@@ -47,13 +56,19 @@ def create_InlineKeyboard_food(id):
 
 def create_InlineKeyboard_user_info(message):
     info = SqlMain.get_info(message)
+    if message.from_user.is_bot:
+        id = message.chat.id
+    else:
+        id = message.from_user.id
 
+    stage = UserStageGuide.objects.get(user=id)
     markup = telebot.types.InlineKeyboardMarkup()
     field = {
         'Возраст': ['age', info.age ,'лет'],
         'Рост': ['height', info.height, 'см'],
         'Пол': ['gender', info.gender, ''],
         'Ваш идельный вес': ['asdvsdfg', info.ideal_weight, 'кг'],
+        'Этап': ['asdvsdfg', stage.stage, ''],
     }
     for text in field.keys():
         if text == 'Ваш идельный вес':
@@ -129,15 +144,24 @@ def create_InlineKeyboard_target(message, flag=False):
     return markup
 
 
-def cur_day_food(id):
+def cur_day_food(id, time):
     markup = telebot.types.InlineKeyboardMarkup()
     user = User.objects.get(id=id)
-    foods = UserDayFood.objects.filter(user=user).values_list('id','name', 'calories')
-    for id, name, calories in list(foods):
+
+    cur_time = datetime.fromtimestamp(time)
+    print(cur_time)
+
+    foods = UserDayFood.objects.filter(
+        user=user,
+        time__year=cur_time.year,
+        time__month=cur_time.month,
+        time__day=cur_time.day
+    ).values_list('id','name', 'calories', 'time')
+    for id, name, calories, time in list(foods):
         if name is None:
-            text=f'{calories}кКл'
+            text=f'{time.hour}:{time.minute} - {calories}кКл'
         else:
-            text=f'{name} {calories}кКл'
+            text=f'{time.hour}:{time.minute} - {name} {calories}кКл'
 
         markup.add(telebot.types.InlineKeyboardButton(
             text=text,
@@ -152,12 +176,16 @@ def cur_day_food(id):
 
 def detail_day_food(food_id):
     markup = telebot.types.InlineKeyboardMarkup()
-    food = UserDayFood.objects.get(id=food_id)
-    if food.name is None:
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Изменить',
-            callback_data=f'change_day_dci_{food_id}'
-        ))
+    # food = UserDayFood.objects.get(id=food_id)
+    # if food.name is None:
+    #     markup.add(telebot.types.InlineKeyboardButton(
+    #         text='Изменить',
+    #         callback_data=f'change_day_dci_{food_id}'
+    #     ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Изменить',
+        callback_data=f'change_day_dci_{food_id}'
+    ))
     markup.add(telebot.types.InlineKeyboardButton(
         text='Удалить',
         callback_data=f'delete_day_dci_{food_id}'
@@ -201,6 +229,10 @@ def create_keyboard_stage(id):
         keyboard.add('Мои данные', 'Моя цель', 'Мастер обучения',
                      'Начать сбор данных', 'Я знаю сколько я ем сейчас')
     elif stage == 4:
+        keyboard.add('Мастер обучения', 'Меню',
+                     'Текущие приемы пищи', 'Завершить сбор данных',
+                     'Мои данные', 'Моя цель')
+    elif stage == 5:
         keyboard.add('Мои данные', 'Моя цель',
                      'Мастер обучения', 'Программа')
     return keyboard

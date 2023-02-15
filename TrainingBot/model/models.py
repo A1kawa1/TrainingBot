@@ -37,7 +37,6 @@ class TargetUser(models.Model):
     cur_week_noraml_dci = models.IntegerField(blank=True, null=True, default=0)
     dci = models.IntegerField(blank=True, null=True, default=0)
     cur_dci = models.IntegerField(blank=True, null=True, default=0)
-    cur_day_dci = models.IntegerField(blank=True, null=True, default=0)
     cur_weight = models.IntegerField(blank=True, null=True, default=0)
     target_weight = models.IntegerField(blank=True, null=True, default=0)
     user = models.ForeignKey('User', models.CASCADE, related_name='target')
@@ -67,3 +66,10 @@ class UserDayFood(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='day_food')
     name = models.TextField(blank=True, null=True)
     calories = models.IntegerField(blank=True, null=True)
+    time = models.DateTimeField()
+
+
+class ResultDayDci(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='result_day_dci')
+    time = models.DateTimeField()
+    calories = models.IntegerField(default=0)

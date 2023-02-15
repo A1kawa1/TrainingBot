@@ -242,34 +242,59 @@ def get_food(message):
         text='Попробовать еще раз',
         callback_data='add_food'
     ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    ))
     for el in foods:
-        try:
-            name, calories = el.split(' - ')
-            if not Button.check_int(calories):
-                bot.send_message(
-                    chat_id=message.chat.id,
-                    text='Вводите согласно формату, повторите попытку',
-                    reply_markup=markup
-                )
-                return
-        except:
+        id_space = el.find(' ')
+        if id_space == -1:
+            calories = el
+            name = None
+        else:
+            calories = el[:id_space]
+            name = el[id_space+1:].strip()
+
+        if not Button.check_int(calories):
             bot.send_message(
-                chat_id=message.chat.id,
+                chat_id=id,
                 text='Вводите согласно формату, повторите попытку',
                 reply_markup=markup
             )
             return
-
-        Food.objects.get_or_create(name=name, calories=calories)
-        food = Food.objects.get(name=name, calories=calories)
+        food, _ = Food.objects.get_or_create(name=name, calories=calories)
         user = User.objects.get(id=id)
         UserFood.objects.get_or_create(
             food=food,
-            user=user
+            user=user,
         )
+        # try:
+        #     name, calories = el.split(' - ')
+        #     if not Button.check_int(calories):
+        #         bot.send_message(
+        #             chat_id=message.chat.id,
+        #             text='Вводите согласно формату, повторите попытку',
+        #             reply_markup=markup
+        #         )
+        #         return
+        # except:
+        #     bot.send_message(
+        #         chat_id=message.chat.id,
+        #         text='Вводите согласно формату, повторите попытку',
+        #         reply_markup=markup
+        #     )
+        #     return
+
+        # Food.objects.get_or_create(name=name, calories=calories)
+        # food = Food.objects.get(name=name, calories=calories)
+        # user = User.objects.get(id=id)
+        # UserFood.objects.get_or_create(
+        #     food=food,
+        #     user=user
+        # )
 
     bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=id,
         text='Блюдо добавлено'
     )
 
