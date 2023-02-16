@@ -149,7 +149,6 @@ def cur_day_food(id, time):
     user = User.objects.get(id=id)
 
     cur_time = datetime.fromtimestamp(time)
-    print(cur_time)
 
     foods = UserDayFood.objects.filter(
         user=user,
@@ -157,11 +156,12 @@ def cur_day_food(id, time):
         time__month=cur_time.month,
         time__day=cur_time.day
     ).values_list('id','name', 'calories', 'time')
+
     for id, name, calories, time in list(foods):
         if name is None:
-            text=f'{time.hour}:{time.minute} - {calories}кКл'
+            text=f'{time.hour:02}:{time.minute:02} - {calories}кКл'
         else:
-            text=f'{time.hour}:{time.minute} - {name} {calories}кКл'
+            text=f'{time.hour:02}:{time.minute:02} - {name} {calories}кКл'
 
         markup.add(telebot.types.InlineKeyboardButton(
             text=text,

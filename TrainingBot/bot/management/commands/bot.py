@@ -474,14 +474,16 @@ class Command(BaseCommand):
                 )
             elif message.text == 'Текущие приемы пищи':
 
-                user = User.objects.get(id=id)
-                cur_time = datetime.fromtimestamp(message.date)
+                # user = User.objects.get(id=id)
+                # cur_time = datetime.fromtimestamp(message.date)
 
-                calories = user.day_food.filter(
-                    time__year=cur_time.year,
-                    time__month=cur_time.month,
-                    time__day=cur_time.day
-                ).aggregate(Sum('calories')).get('calories__sum')
+                # calories = user.day_food.filter(
+                #     time__year=cur_time.year,
+                #     time__month=cur_time.month,
+                #     time__day=cur_time.day
+                # ).aggregate(Sum('calories')).get('calories__sum')
+
+                calories = update_result_day_DCI(message)
 
                 bot.send_message(
                     chat_id=id,

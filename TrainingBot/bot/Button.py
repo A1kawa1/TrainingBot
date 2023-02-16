@@ -302,12 +302,15 @@ def update_result_day_DCI(message):
 
     cur_time = datetime.fromtimestamp(message.date)
     user = User.objects.get(id=id)
+
     calories = user.day_food.filter(
         time__year=cur_time.year,
         time__month=cur_time.month,
         time__day=cur_time.day
     ).aggregate(Sum('calories'))
 
+    if calories.get('calories__sum') is None:
+        calories['calories__sum'] = 0
 
     if not ResultDayDci.objects.filter(
         user=user,
@@ -468,13 +471,14 @@ def delete_day_DCI(message, food_id):
         id = message.from_user.id
 
     food = UserDayFood.objects.get(id=food_id)
+    cal_delete = food.calories
     food.delete()
 
     calories = update_result_day_DCI(message)
 
     bot.send_message(
         chat_id=id,
-        text=f'Вы удалили {calories}кКл'
+        text=f'Вы удалили {cal_delete}кКл'
     )
     bot.send_message(
         chat_id=id,
