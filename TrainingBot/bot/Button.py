@@ -1,5 +1,6 @@
 from django.db.models import Sum
-from datetime import datetime
+import statistics
+from datetime import datetime, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
@@ -276,7 +277,7 @@ def change_cur_DCI(message):
     target_user.cur_dci = int(message.text)
     target_user.save()
 
-    if SqlMain.get_stage(id) == 3:
+    if SqlMain.get_stage(id) == 3 or SqlMain.get_stage(id) == 4:
         user_stage_guide = UserStageGuide.objects.get(user=id)
         user_stage_guide.stage = 5
         user_stage_guide.save()
@@ -333,6 +334,10 @@ def update_result_day_DCI(message):
 
     result_dci.calories = calories.get('calories__sum')
     result_dci.save()
+    print('-----------------------')
+    if check_variance(id):
+        print('dci определено')
+    print('-----------------------')
     return result_dci.calories
 
 
@@ -485,4 +490,24 @@ def delete_day_DCI(message, food_id):
         text=f'Сегодня вы поели на {calories}',
         reply_markup=InlineKeyboard.cur_day_food(id, message.date)
     )
-    
+
+
+def check_variance(id):
+    data = list(ResultDayDci.objects.filter(user=id).values_list('calories', 'time'))
+    calories = [x[0] for x in data]
+    time = [x[1] for x in data]
+    delta = timedelta(days=1)
+
+    if len(data) < 4:
+        print('мало данных')
+        return False
+    delta1 = time[-1]-time[-2]
+    delta2 = time[-2]-time[-3]
+
+    res_calories = statistics.stdev(calories[-3:]) / statistics.mean(calories[-3:]) * 100
+
+    print('res_calories =', res_calories)
+    print('3 дня подряд -', all([delta1.days <= delta.days, delta2.days <= delta.days]))
+    if res_calories <= 20 and all([delta1.days <= delta.days, delta2.days <= delta.days]):
+        return True
+    return False

@@ -220,19 +220,19 @@ def create_keyboard_stage(id):
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
     stage = SqlMain.get_stage(id)
     if stage == 0:
-        keyboard.add('Мои данные')
+        keyboard.add('Мои данные', 'Сброс')
     elif stage == 1:
-        keyboard.add('Мои данные', 'Моя цель')
+        keyboard.add('Мои данные', 'Моя цель', 'Сброс')
     elif stage == 2:
-        keyboard.add('Мои данные', 'Моя цель')
+        keyboard.add('Мои данные', 'Моя цель', 'Сброс')
     elif stage == 3:
         keyboard.add('Мои данные', 'Моя цель', 'Мастер обучения',
-                     'Начать сбор данных', 'Я знаю сколько я ем сейчас')
+                     'Начать сбор данных', 'Я знаю сколько я ем сейчас', 'Сброс')
     elif stage == 4:
         keyboard.add('Мастер обучения', 'Меню',
                      'Текущие приемы пищи', 'Завершить сбор данных',
-                     'Мои данные', 'Моя цель')
+                     'Мои данные', 'Моя цель', 'Сброс')
     elif stage == 5:
         keyboard.add('Мои данные', 'Моя цель',
-                     'Мастер обучения', 'Программа')
+                     'Мастер обучения', 'Программа', 'Сброс')
     return keyboard
