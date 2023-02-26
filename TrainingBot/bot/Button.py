@@ -560,6 +560,9 @@ def check_variance(id):
         print(tmp_time)
 
         for index_el in range(len(tmp_calories)-1):
+            if not all([tmp_calories[index_el], tmp_calories[index_el+1]]):
+                flag_20 = False
+                break
             print(abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])))
             if not (abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])) <= 0.2):
                 print('большая разница')

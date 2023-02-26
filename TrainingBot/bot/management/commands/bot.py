@@ -526,7 +526,7 @@ class Command(BaseCommand):
                 else:
                     avg_dci = int(
                         (ResultDayDci.objects.filter(user=id)
-                        .order_by('time')[len(data)-3:len(data)-1]
+                        .order_by('time')[1:len(data)-1]
                         .aggregate(Avg('calories'))
                         .get('calories__avg'))
                     )
