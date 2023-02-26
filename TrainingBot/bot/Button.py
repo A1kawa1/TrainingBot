@@ -1,6 +1,6 @@
 from django.db.models import Sum
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
@@ -493,21 +493,104 @@ def delete_day_DCI(message, food_id):
 
 
 def check_variance(id):
-    data = list(ResultDayDci.objects.filter(user=id).values_list('calories', 'time'))
-    calories = [x[0] for x in data]
-    time = [x[1] for x in data]
-    delta = timedelta(days=1)
+    # flg_day_skip = False
+    # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    # data = list(ResultDayDci.objects.filter(user=id).order_by('time').values_list('calories', 'time'))
+    # calories = [x[0] for x in data]
+    # time = [x[1] for x in data]
 
-    if len(data) < 4:
+    # if len(data) < 5:
+    #     print('мало данных')
+    #     return False
+
+    # res_time = [(el.month, el.day) for el in time[-4:-1]]
+    # print(time)
+    # print(res_time)
+    # for index, (month, day) in enumerate(res_time[:-1], 0):
+    #     if day == days[month-1]:
+    #         fday = 1
+    #         fmh = month+1
+    #     else:
+    #         fday = day + 1
+    #         fmh = month
+    #     if res_time[index+1][1] == fday and res_time[index+1][0] == fmh:
+    #         continue
+    #     elif res_time[index+1][1] == fday + 1 and res_time[index+1][0] == fmh:
+    #         if flg_day_skip:
+    #             print('пропущено более одного дня')
+    #             return False
+    #         flg_day_skip = True
+    #         continue
+    #     else:
+    #         print('даты не прошли')
+    #         return False
+
+    # print('даты прошли')
+
+    # res_calories = statistics.stdev(calories[-4:-1]) / statistics.mean(calories[-4:-1]) * 100
+
+    # print('res_calories =', res_calories)
+    # if not (res_calories <= 20):
+    #     return False
+    # return True
+
+    result = False
+    days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    data = list(ResultDayDci.objects.filter(user=id).order_by('time').values_list('calories', 'time'))
+
+    if len(data) < 5:
         print('мало данных')
         return False
-    delta1 = time[-1]-time[-2]
-    delta2 = time[-2]-time[-3]
 
-    res_calories = statistics.stdev(calories[-3:]) / statistics.mean(calories[-3:]) * 100
+    calories = [x[0] for x in data]
+    time = [x[1] for x in data]
+    print(calories)
+    print('Исходные данные:')
+    print(calories[1:-1])
+    print(time[1:-1])
+    print('-------------------')
+    for index in range(len(calories[1:-1])-2):
+        flag_20 = True
+        flag_date = True
+        flg_day_skip = False
+        tmp_calories = calories[1:-1][index:index+3]
+        tmp_time = [(el.month, el.day) for el in time[1:-1][index:index+3]]
 
-    print('res_calories =', res_calories)
-    print('3 дня подряд -', all([delta1.days <= delta.days, delta2.days <= delta.days]))
-    if res_calories <= 20 and all([delta1.days <= delta.days, delta2.days <= delta.days]):
-        return True
-    return False
+        print(tmp_calories)
+        print(tmp_time)
+
+        for index_el in range(len(tmp_calories)-1):
+            print(abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])))
+            if not (abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])) <= 0.2):
+                print('большая разница')
+                flag_20 = False
+                break
+            
+            day = tmp_time[index_el][1]
+            month = tmp_time[index_el][0]
+            if day == days[month-1]:
+                fday = 1
+                fmh = month+1
+            else:
+                fday = day + 1
+                fmh = month
+            if tmp_time[index_el+1][1] == fday and tmp_time[index_el+1][0] == fmh:
+                continue
+            elif tmp_time[index_el+1][1] == fday + 1 and tmp_time[index_el+1][0] == fmh:
+                if flg_day_skip:
+                    print('пропущено более одного дня')
+                    flag_date = False
+                    break
+                flg_day_skip = True
+                continue
+            else:
+                print('даты не прошли')
+                flag_date = False
+                break
+
+        if flag_20 and flag_date:
+            print('это подходящие данные')
+            print('-------------------')
+            result = True
+
+    return result

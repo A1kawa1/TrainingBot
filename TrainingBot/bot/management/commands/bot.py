@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.db.models import Max
+from django.db.models import Max, Avg
 import telebot, schedule
 from datetime import datetime
 from threading import Thread
@@ -273,7 +273,7 @@ class Command(BaseCommand):
                     except:
                         if message.text not in (
                             'Мастер обучения', 'Меню',
-                            'Текущие приемы пищи', 'Завершить сбор данных',
+                            'Текущие приемы пищи', 'Мониторинг',
                             'Мои данные', 'Моя цель', 'Сброс'):
                             bot.send_message(
                                 chat_id=id,
@@ -284,7 +284,7 @@ class Command(BaseCommand):
                     return True
             if message.text not in (
                 'Мастер обучения', 'Меню',
-                'Текущие приемы пищи', 'Завершить сбор данных',
+                'Текущие приемы пищи', 'Мониторинг',
                 'Мои данные', 'Моя цель', 'Сброс'):
                 bot.send_message(
                     chat_id=id,
@@ -489,18 +489,14 @@ class Command(BaseCommand):
                 )
                 bot.register_next_step_handler(message, change_cur_DCI)  
             elif message.text == 'Начать сбор данных':
-                keyboard = telebot.types.ReplyKeyboardMarkup(True)
-
                 user_stage_guide = UserStageGuide.objects.get(user=id)
                 user_stage_guide.stage = 4
                 user_stage_guide.save()
 
-                keyboard.add('Мастер обучения', 'Меню',
-                             'Текущие приемы пищи', 'Завершить сбор данных')
                 bot.send_message(
                     chat_id=id,
                     text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',
-                    reply_markup=keyboard
+                    reply_markup=create_keyboard_stage(id)
                 )
             elif message.text == 'Текущие приемы пищи':
 
@@ -520,9 +516,20 @@ class Command(BaseCommand):
                     text=f'Сегодня вы поели на {calories}',
                     reply_markup=cur_day_food(id, message.date)
                 )
-            elif message.text == 'Завершить сбор данных':
+            elif message.text == 'Мониторинг':
                 count_day = ResultDayDci.objects.filter(user=id).count()
-                avg_dci = ResultDayDci.objects.filter(user=id).aggregate(Max('calories')).get("calories__max")
+                data = ResultDayDci.objects.filter(user=id).order_by('time')
+                if count_day == 1:
+                    avg_dci = data[0].calories
+                elif count_day in (2, 3):
+                    avg_dci = data[1].calories
+                else:
+                    avg_dci = int(
+                        (ResultDayDci.objects.filter(user=id)
+                        .order_by('time')[len(data)-3:len(data)-1]
+                        .aggregate(Avg('calories'))
+                        .get('calories__avg'))
+                    )
 
                 markup = telebot.types.InlineKeyboardMarkup()
                 markup.add(telebot.types.InlineKeyboardButton(
@@ -530,7 +537,7 @@ class Command(BaseCommand):
                     callback_data='asdasdf'
                 ))
                 markup.add(telebot.types.InlineKeyboardButton(
-                    text=f'Регулярность ввода данных: {int(count_day / 4 * 100)}%',
+                    text=f'Регулярность ввода данных: {int(count_day / 4 * 100) if count_day <= 4 else 100}%',
                     callback_data='asdasdf'
                 ))
                 markup.add(telebot.types.InlineKeyboardButton(
