@@ -552,7 +552,7 @@ def check_variance(id):
     for index in range(len(calories[1:-1])-2):
         flag_20 = True
         flag_date = True
-        flg_day_skip = False
+        flag_day_skip = False
         tmp_calories = calories[1:-1][index:index+3]
         tmp_time = [(el.month, el.day) for el in time[1:-1][index:index+3]]
 
@@ -577,11 +577,11 @@ def check_variance(id):
             if tmp_time[index_el+1][1] == fday and tmp_time[index_el+1][0] == fmh:
                 continue
             elif tmp_time[index_el+1][1] == fday + 1 and tmp_time[index_el+1][0] == fmh:
-                if flg_day_skip:
+                if flag_day_skip:
                     print('пропущено более одного дня')
                     flag_date = False
                     break
-                flg_day_skip = True
+                flag_day_skip = True
                 continue
             else:
                 print('даты не прошли')
