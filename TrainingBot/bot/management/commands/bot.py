@@ -518,7 +518,7 @@ class Command(BaseCommand):
                 )
             elif message.text == 'Мониторинг':
                 count_day = ResultDayDci.objects.filter(user=id).count()
-                data = ResultDayDci.objects.filter(user=id).order_by('time')
+                data = ResultDayDci.objects.filter(user=id).order_by('date')
                 if count_day == 1:
                     avg_dci = data[0].calories
                 elif count_day in (2, 3):
@@ -526,7 +526,7 @@ class Command(BaseCommand):
                 else:
                     avg_dci = int(
                         (ResultDayDci.objects.filter(user=id)
-                        .order_by('time')[1:len(data)-1]
+                        .order_by('date')[1:len(data)-1]
                         .aggregate(Avg('calories'))
                         .get('calories__avg'))
                     )

@@ -64,5 +64,5 @@ class UserDayFood(models.Model):
 
 class ResultDayDci(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='result_day_dci')
-    time = models.DateTimeField()
+    date = models.DateField()
     calories = models.IntegerField(default=0)

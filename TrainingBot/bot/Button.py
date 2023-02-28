@@ -1,6 +1,6 @@
 from django.db.models import Sum
 import statistics
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
@@ -313,23 +313,20 @@ def update_result_day_DCI(message):
     if calories.get('calories__sum') is None:
         calories['calories__sum'] = 0
 
+    cur_date = date(cur_time.year, cur_time.month, cur_time.day)
     if not ResultDayDci.objects.filter(
         user=user,
-        time__year=cur_time.year,
-        time__month=cur_time.month,
-        time__day=cur_time.day
+        date=cur_date
     ).exists():
         result_dci= ResultDayDci(
             user=user,
-            time=cur_time
+            date=cur_date
         )
         result_dci.save()
     else:
         result_dci = ResultDayDci.objects.get(
             user=user,
-            time__year=cur_time.year,
-            time__month=cur_time.month,
-            time__day=cur_time.day
+            date=cur_date
         )
 
     result_dci.calories = calories.get('calories__sum')
@@ -492,12 +489,90 @@ def delete_day_DCI(message, food_id):
     )
 
 
+def create_data_to_analise(id):
+    data = list(ResultDayDci.objects.filter(user=id).order_by('date').values_list('calories', 'date'))
+    if len(data) < 5:
+        return False
+
+    calories = [x[0] for x in data[1:-1]]
+    date = [x[1] for x in data[1:-1]]
+    res_calories = []
+
+    for index in range(len(date)-1):
+        res_calories.append(calories[index])
+        days_delta = date[index+1] - date[index]
+        if days_delta != timedelta(days=1):
+            res_calories.extend([0]*(days_delta.days-1))
+
+    res_calories.append(calories[-1])
+    print(res_calories)
+    return res_calories
+
+
+def analise_data(data):
+    # result = False
+    # for index in range(len(data)-3):
+    #     cound_right_deviation = 0
+    #     tmp_data = data[index:index+4]
+    #     print(tmp_data)
+    #     for index_el in range(len(tmp_data)-1):
+    #         if not any([tmp_data[index_el], tmp_data[index_el+1]]):
+    #             cound_right_deviation = 0
+    #             break
+    #         deviation = lambda i: abs(tmp_data[index_el] - tmp_data[index_el+i]) / max((tmp_data[index_el], tmp_data[index_el+i]))
+    #         if deviation(1) <= 0.2:
+    #             cound_right_deviation += 1
+    #         elif (index_el != len(tmp_data) - 2) and (deviation(2) <= 0.2):
+    #             cound_right_deviation += 1
+
+    #     if cound_right_deviation >= 2:
+    #         result = True
+    #         print('данные подходят')
+    # return result
+    result = []
+    zeroDaysCount = 0
+    tmpPrev = 0
+    for i in range(len(data)):
+        current = data[i]
+        if len(result) > 0:
+            prev = result[-1]
+            if current != 0 and abs(1 - prev / current) <= 0.2:
+                result.append(current)
+            else:
+                if zeroDaysCount == 0:
+                    tmpPrev = current
+                    zeroDaysCount += 1
+                else:
+                    zeroDaysCount = 0
+                    result.clear()
+                    if current != 0 and abs(1 - tmpPrev / current) <= 0.2:
+                        result.append(tmpPrev)
+                    result.append(current)
+        else:
+            result.append(current)
+        if len(result) - result.count(0) >= 3:
+            break
+    if len(result) - result.count(0) >= 3:
+        print('--------------')
+        print(result)
+        print('--------------')
+        return True
+    return False
+
+
 def check_variance(id):
+    data = create_data_to_analise(id)
+    if not data:
+        print('мало данных')
+        return False
+
+    return analise_data(data)
     # flg_day_skip = False
     # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     # data = list(ResultDayDci.objects.filter(user=id).order_by('time').values_list('calories', 'time'))
     # calories = [x[0] for x in data]
     # time = [x[1] for x in data]
+
 
     # if len(data) < 5:
     #     print('мало данных')
@@ -534,66 +609,69 @@ def check_variance(id):
     #     return False
     # return True
 
-    result = False
-    days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    data = list(ResultDayDci.objects.filter(user=id).order_by('time').values_list('calories', 'time'))
 
-    if len(data) < 5:
-        print('мало данных')
-        return False
 
-    calories = [x[0] for x in data]
-    time = [x[1] for x in data]
-    print(calories)
-    print('Исходные данные:')
-    print(calories[1:-1])
-    print(time[1:-1])
-    print('-------------------')
-    for index in range(len(calories[1:-1])-2):
-        flag_20 = True
-        flag_date = True
-        flag_day_skip = False
-        tmp_calories = calories[1:-1][index:index+3]
-        tmp_time = [(el.month, el.day) for el in time[1:-1][index:index+3]]
 
-        print(tmp_calories)
-        print(tmp_time)
+    # result = False
+    # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    # data = list(ResultDayDci.objects.filter(user=id).order_by('date').values_list('calories', 'date'))
 
-        for index_el in range(len(tmp_calories)-1):
-            if not all([tmp_calories[index_el], tmp_calories[index_el+1]]):
-                flag_20 = False
-                break
-            print(abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])))
-            if not (abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])) <= 0.2):
-                print('большая разница')
-                flag_20 = False
-                break
+    # if len(data) < 5:
+    #     print('мало данных')
+    #     return False
+
+    # calories = [x[0] for x in data]
+    # time = [x[1] for x in data]
+    # print(calories)
+    # print('Исходные данные:')
+    # print(calories[1:-1])
+    # print(time[1:-1])
+    # print('-------------------')
+    # for index in range(len(calories[1:-1])-2):
+    #     flag_20 = True # 300 350 100 350 350 100 350 350 100
+    #     flag_date = True
+    #     flag_day_skip = False
+    #     tmp_calories = calories[1:-1][index:index+3]
+    #     tmp_time = [(el.month, el.day) for el in time[1:-1][index:index+3]]
+
+    #     print(tmp_calories)
+    #     print(tmp_time)
+
+    #     for index_el in range(len(tmp_calories)-1):
+    #         if not any([tmp_calories[index_el], tmp_calories[index_el+1]]):
+    #             flag_20 = False
+    #             break
+    #         print(abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])))
+    #         if not (abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])) <= 0.2):
+    #             print('большая разница')
+    #             flag_20 = False
+    #             break
             
-            day = tmp_time[index_el][1]
-            month = tmp_time[index_el][0]
-            if day == days[month-1]:
-                fday = 1
-                fmh = month+1
-            else:
-                fday = day + 1
-                fmh = month
-            if tmp_time[index_el+1][1] == fday and tmp_time[index_el+1][0] == fmh:
-                continue
-            elif tmp_time[index_el+1][1] == fday + 1 and tmp_time[index_el+1][0] == fmh:
-                if flag_day_skip:
-                    print('пропущено более одного дня')
-                    flag_date = False
-                    break
-                flag_day_skip = True
-                continue
-            else:
-                print('даты не прошли')
-                flag_date = False
-                break
+    #         day = tmp_time[index_el][1]
+    #         month = tmp_time[index_el][0]
+    #         if day == days[month-1]:
+    #             fday = 1
+    #             fmh = month+1
+    #         else:
+    #             fday = day + 1
+    #             fmh = month
+    #         if tmp_time[index_el+1][1] == fday and tmp_time[index_el+1][0] == fmh:
+    #             continue
+    #         elif tmp_time[index_el+1][1] == fday + 1 and tmp_time[index_el+1][0] == fmh:
+    #             if flag_day_skip:
+    #                 print('пропущено более одного дня')
+    #                 flag_date = False
+    #                 break
+    #             flag_day_skip = True
+    #             continue
+    #         else:
+    #             print('даты не прошли')
+    #             flag_date = False
+    #             break
 
-        if flag_20 and flag_date:
-            print('это подходящие данные')
-            print('-------------------')
-            result = True
+    #     if flag_20 and flag_date:
+    #         print('это подходящие данные')
+    #         print('-------------------')
+    #         result = True
 
-    return result
+    # return result
