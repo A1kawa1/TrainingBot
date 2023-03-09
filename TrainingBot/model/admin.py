@@ -21,7 +21,8 @@ class InfoUserAdmin(admin.ModelAdmin):
 
 
 class TargetUserAdmin(admin.ModelAdmin):
-    list_display = ('user', 'type', 'activity', 'period', 'cur_dci', 'cur_weight', 'target_weight')
+    list_display = ('user', 'type', 'activity', 'cur_dci',
+                    'cur_weight', 'target_weight')
     search_fields = ('user',)
     empty_value_display = '-пусто-'
 

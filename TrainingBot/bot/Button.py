@@ -4,27 +4,28 @@ from datetime import datetime, date, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
-from bot.config import ACTIVITY, TYPE, TOKEN
+from bot.config import ACTIVITY, TYPE, TOKEN, K_PHASE2
 
 from model.models import *
 
 
 bot = telebot.TeleBot(TOKEN)
 
+
 def check_int(x):
-        try:
-            y = int(x)
-            return True
-        except:
-            return False
+    try:
+        y = int(x)
+        return True
+    except:
+        return False
 
 
 def check_float(x):
-        try:
-            y = float(x)
-            return True
-        except:
-            return False
+    try:
+        y = float(x)
+        return True
+    except:
+        return False
 
 
 def change_DCI_ideal_weight(message):
@@ -34,7 +35,7 @@ def change_DCI_ideal_weight(message):
         id = message.from_user.id
 
     info_user = InfoUser.objects.get(user=id)
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
     inf = (
         info_user.age,
         info_user.height,
@@ -45,9 +46,11 @@ def change_DCI_ideal_weight(message):
     print(inf)
     if (None not in inf) and ('None' not in inf):
         if inf[3] == 'woomen':
-            DCI = int((655 + (9.6 * inf[2]) + (1.8 * inf[1]) - (4.7 * inf[0])) * ACTIVITY.get(inf[4]))
+            DCI = int(
+                (655 + (9.6 * inf[2]) + (1.8 * inf[1]) - (4.7 * inf[0])) * ACTIVITY.get(inf[4]))
         else:
-            DCI = int((66 + (13.7 * inf[2]) + (5 * inf[1]) - (6.8 * inf[0])) * ACTIVITY.get(inf[4]))
+            DCI = int(
+                (66 + (13.7 * inf[2]) + (5 * inf[1]) - (6.8 * inf[0])) * ACTIVITY.get(inf[4]))
 
         target_user = TargetUser.objects.get(user=id)
         target_user.dci = DCI
@@ -75,7 +78,7 @@ def change_info(message, field):
         callback_data='my_info'
     ))
 
-    if field != 'gender' and not check_int(message.text):
+    if not check_int(message.text):
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите целое число, повторите попытку',
@@ -128,7 +131,6 @@ def change_info(message, field):
                   'Создайте свою первую цель, и мы поможем ее достигнуть.'),
             reply_markup=markup
         )
-    
 
 
 # def change_weight(message):
@@ -189,7 +191,7 @@ def change_target_weight(message, field):
         )
         return
 
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
     if field == 'target_weight':
         target_user.target_weight = round(float(message.text), 1)
     elif field == 'cur_weight':
@@ -205,11 +207,11 @@ def change_target_weight(message, field):
         reply_markup=markup
     )
 
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
 
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in (target_user.type, target_user.activity))
-        and SqlMain.get_stage(id) == 1):
+            and SqlMain.get_stage(id) == 1):
 
         keyboard = telebot.types.ReplyKeyboardMarkup(True)
         markup = telebot.types.InlineKeyboardMarkup()
@@ -273,21 +275,12 @@ def change_cur_DCI(message):
         )
         return
 
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
     target_user.cur_dci = int(message.text)
     target_user.save()
 
     if SqlMain.get_stage(id) == 3 or SqlMain.get_stage(id) == 4:
-        user_stage_guide = UserStageGuide.objects.get(user=id)
-        user_stage_guide.stage = 5
-        user_stage_guide.save()
-
-        markup = InlineKeyboard.create_InlineKeyboard_target(message, False)
-        bot.send_message(
-            chat_id=id,
-            text='Вы на 5 этапе',
-            reply_markup=InlineKeyboard.create_keyboard_stage(id)
-        )
+        update_stage_5(id, message)
         return
     bot.send_message(
         chat_id=id,
@@ -318,7 +311,7 @@ def update_result_day_DCI(message):
         user=user,
         date=cur_date
     ).exists():
-        result_dci= ResultDayDci(
+        result_dci = ResultDayDci(
             user=user,
             date=cur_date
         )
@@ -334,39 +327,40 @@ def update_result_day_DCI(message):
     print('-----------------------')
     if check_variance(id):
         print('dci определено')
+        return 'dci_success'
     print('-----------------------')
     return result_dci.calories
 
 
 def add_from_menu_day_DCI(call):
     # if change:
-        # user = User.objects.get(id=call)
-        # calories = user.day_food.all().aggregate(Sum('calories'))
+    # user = User.objects.get(id=call)
+    # calories = user.day_food.all().aggregate(Sum('calories'))
 
-        # target_user = TargetUser.objects.get(user=call)
-        # target_user.cur_day_dci = calories.get('calories__sum')
-        # target_user.save()
-        # return
+    # target_user = TargetUser.objects.get(user=call)
+    # target_user.cur_day_dci = calories.get('calories__sum')
+    # target_user.save()
+    # return
 
     # if delete:
-        # food = UserDayFood.objects.get(id=call)
-        # calories = food.calories
-        # food.delete()
+    # food = UserDayFood.objects.get(id=call)
+    # calories = food.calories
+    # food.delete()
 
-        # target_user = TargetUser.objects.get(user=flag)
-        # target_user.cur_day_dci = target_user.cur_day_dci - calories
-        # target_user.save()
+    # target_user = TargetUser.objects.get(user=flag)
+    # target_user.cur_day_dci = target_user.cur_day_dci - calories
+    # target_user.save()
 
-        # bot.send_message(
-        #     chat_id=flag,
-        #     text=f'Вы удалили {calories}кКл'
-        # )
-        # bot.send_message(
-        #     chat_id=flag,
-        #     text=f'Сегодня вы поели на {target_user.cur_day_dci}',
-        #     reply_markup=InlineKeyboard.cur_day_food(flag)
-        # )
-        # return
+    # bot.send_message(
+    #     chat_id=flag,
+    #     text=f'Вы удалили {calories}кКл'
+    # )
+    # bot.send_message(
+    #     chat_id=flag,
+    #     text=f'Сегодня вы поели на {target_user.cur_day_dci}',
+    #     reply_markup=InlineKeyboard.cur_day_food(flag)
+    # )
+    # return
 
     name = None
     msg = call.data[5:]
@@ -384,6 +378,9 @@ def add_from_menu_day_DCI(call):
     food_user.save()
 
     calories = update_result_day_DCI(call.message)
+    if calories == 'dci_success':
+        update_stage_5(data[1], call.message)
+        return
 
     text = f'{name} - {data[0]}' if not name is None else f'{data[0]}'
     bot.send_message(
@@ -400,9 +397,9 @@ def detail_food(food_id):
     food = UserDayFood.objects.get(id=food_id)
     print(food.time)
     if food.name is None:
-        text=f'{food.time.hour}:{food.time.minute} - {food.calories}кКл'
+        text = f'{food.time.hour}:{food.time.minute} - {food.calories}кКл'
     else:
-        text=f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
+        text = f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
 
     bot.send_message(
         chat_id=food.user.id,
@@ -422,25 +419,30 @@ def change_day_DCI(message, food_id):
         text='Попробовать снова',
         callback_data=f'detail_{food_id}'
     ))
-    if not check_int(message.text):
+    food = UserDayFood.objects.get(id=food_id)
+
+    tmp = message.text.split()
+    print(tmp)
+
+    if not check_int(tmp[0]):
         bot.send_message(
             chat_id=id,
             text='Вводите целое число, повторите попытку',
             reply_markup=markup
         )
         return
-    if int(message.text) < 0:
+    if int(tmp[0]) < 0:
         bot.send_message(
             chat_id=id,
             text='Вводите положительное число, повторите попытку',
             reply_markup=markup
         )
         return
+    food.calories = int(tmp[0])
+    if len(tmp) > 1:
+        food.name = ' '.join(tmp[1:])
 
-    food = UserDayFood.objects.get(id=food_id)
-    food.calories = int(message.text)
     food.save()
-
 
     # user = User.objects.get(id=id)
     # calories = user.day_food.all().aggregate(Sum('calories'))
@@ -452,11 +454,13 @@ def change_day_DCI(message, food_id):
     # result_dci.calories = calories.get('calories__sum')
     # result_dci.save()
     calories = update_result_day_DCI(message)
-    
+    if calories == 'dci_success':
+        update_stage_5(id, message)
+        return
 
     bot.send_message(
         chat_id=id,
-        text='Вы изменили калорийность'
+        text='Вы изменили данные'
     )
 
     bot.send_message(
@@ -477,6 +481,9 @@ def delete_day_DCI(message, food_id):
     food.delete()
 
     calories = update_result_day_DCI(message)
+    if calories == 'dci_success':
+        update_stage_5(id, message)
+        return
 
     bot.send_message(
         chat_id=id,
@@ -490,7 +497,8 @@ def delete_day_DCI(message, food_id):
 
 
 def create_data_to_analise(id):
-    data = list(ResultDayDci.objects.filter(user=id).order_by('date').values_list('calories', 'date'))
+    data = list(ResultDayDci.objects.filter(user=id).order_by(
+        'date').values_list('calories', 'date'))
     if len(data) < 5:
         return False
 
@@ -573,7 +581,6 @@ def check_variance(id):
     # calories = [x[0] for x in data]
     # time = [x[1] for x in data]
 
-
     # if len(data) < 5:
     #     print('мало данных')
     #     return False
@@ -609,9 +616,6 @@ def check_variance(id):
     #     return False
     # return True
 
-
-
-
     # result = False
     # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     # data = list(ResultDayDci.objects.filter(user=id).order_by('date').values_list('calories', 'date'))
@@ -646,7 +650,7 @@ def check_variance(id):
     #             print('большая разница')
     #             flag_20 = False
     #             break
-            
+
     #         day = tmp_time[index_el][1]
     #         month = tmp_time[index_el][0]
     #         if day == days[month-1]:
@@ -675,3 +679,137 @@ def check_variance(id):
     #         result = True
 
     # return result
+
+
+def update_stage_3(id):
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Начать сбор данных',
+        callback_data='start_get_cur_DCI'
+    ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Я знаю сколько я ем сейчас',
+        callback_data='get_cur_DCI'
+    ))
+    user_stage_guide = UserStageGuide.objects.get(user=id)
+    user_stage_guide.stage = 3
+    user_stage_guide.save()
+
+    bot.send_message(
+        chat_id=id,
+        text='Теперь вы умеете считать калории и определять сколько вы съели в течение дня',
+        reply_markup=InlineKeyboard.create_keyboard_stage(id)
+    )
+    bot.send_message(
+        chat_id=id,
+        text=(
+            'Настало время определить сколько калорий вы '
+            'съедаете сейчас. Для этого просто фиксируйте в приложении '
+            'каждый прием пищи. Если вы уже знаете сколько едите сейчас, '
+            'то данный шаг можно пропустить.'
+        ),
+        reply_markup=markup
+    )
+
+
+def update_stage_4(id):
+    user_stage_guide = UserStageGuide.objects.get(user=id)
+    user_stage_guide.stage = 4
+    user_stage_guide.save()
+
+    bot.send_message(
+        chat_id=id,
+        text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',
+        reply_markup=InlineKeyboard.create_keyboard_stage(id)
+    )
+
+
+def update_stage_5(id, message):
+    user_stage_guide = UserStageGuide.objects.get(user=id)
+    user_stage_guide.stage = 5
+    user_stage_guide.save()
+
+    create_program(id, message)
+
+    bot.send_message(
+        chat_id=id,
+        text=('Теперь у нас достаточно данных чтобы рассчитать '
+              'для вас максимально эффективную программу '
+              'управления весом.'),
+        reply_markup=InlineKeyboard.create_keyboard_stage(id)
+    )
+    bot.send_message(
+        chat_id=id,
+        text=('Программа состоит из двух фаз. Фаза 1 - снижаем '
+              'калории до правильного уровня в соответсвии с '
+              'вашим образом жизни. Фаза 2 - вводим небольшой '
+              'дефицит калорий, для начала процесса похудения.'),
+    )
+    bot.send_message(
+        chat_id=id,
+        text=('Ваша программа и текущие показатели всегда доступны '
+              'по кнопке "Программа" в основном меню приложения.'),
+        reply_markup=InlineKeyboard.create_inline_program(id)
+    )
+
+
+def create_program(id, message):
+    cur_time = datetime.fromtimestamp(message.date)
+    cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+
+    target = TargetUser.objects.filter(user=id).last()
+    cur_dci = target.cur_dci
+    dci = target.dci
+    cur_weight = target.cur_weight
+    target_weight = target.target_weight
+
+    program = UserProgram(
+        user=User.objects.get(id=id),
+        date_start=cur_date,
+        start_dci=cur_dci,
+        cur_dci=cur_dci,
+        phase1=int((cur_dci - dci) / 100 * 7)+1 if (cur_dci - dci) > 0 else 0,
+        phase2=(6000 * (cur_weight - target_weight) / 200
+                / K_PHASE2) if (cur_weight - target_weight) > 0 else 0,
+        cur_day=1,
+        cur_weight=cur_weight
+    )
+    program.save()
+
+    target.program = program
+    target.save()
+
+
+def change_weight_in_program(message):
+    id = message.from_user.id
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Попробовать снова',
+        callback_data='program'
+    ))
+
+    if not check_float(message.text):
+        bot.send_message(
+            chat_id=message.chat.id,
+            text='Вводите целое или дробное число, повторите попытку',
+            reply_markup=markup
+        )
+        return
+    if float(message.text) < 0:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text='Вводите положительное число, повторите попытку',
+            reply_markup=markup
+        )
+        return
+
+    program_user = UserProgram.objects.filter(user=id).last()
+    program_user.cur_weight = round(float(message.text), 1)
+    program_user.save()
+
+    bot.send_message(
+        chat_id=id,
+        text=('Ваша программа и текущие показатели всегда доступны '
+              'по кнопке "Программа" в основном меню приложения.'),
+        reply_markup=InlineKeyboard.create_inline_program(id)
+    )

@@ -1,4 +1,4 @@
-TOKEN = '6106893848:AAHpPn16Y3Y0S8jueRd7F4XS9LlPP1igc4c'
+TOKEN = '5733970707:AAFAemFL2kflSLxNM1syz4SnZe3MeM2LzM0'
 
 ACTIVITY = {
     'отсутствует или минимальная': 1.2,
@@ -11,3 +11,5 @@ TYPE = [
     'Сбросить вес',
     'Набрать вес'
 ]
+
+K_PHASE2 = 2

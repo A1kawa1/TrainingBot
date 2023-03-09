@@ -2,25 +2,32 @@ import telebot
 from datetime import datetime
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
-from model.models import User, UserFood, UserDayFood, UserStageGuide
+from model.models import User, UserFood, UserDayFood, UserStageGuide, TargetUser
 
 
 def create_InlineKeyboard(user):
     markup = telebot.types.InlineKeyboardMarkup()
-    if user[1] is None :
-         markup.add(telebot.types.InlineKeyboardButton(text='Имя', callback_data='first_name'))
+    if user[1] is None:
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Имя', callback_data='first_name'))
     else:
-        markup.add(telebot.types.InlineKeyboardButton(text=user[1], callback_data='first_name'))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text=user[1], callback_data='first_name'))
     if user[2] is None:
-        markup.add(telebot.types.InlineKeyboardButton(text='Фамилия', callback_data='last_name'))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Фамилия', callback_data='last_name'))
     else:
-        markup.add(telebot.types.InlineKeyboardButton(text=user[2], callback_data='first_name'))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text=user[2], callback_data='first_name'))
     if user[3] is None:
-        markup.add(telebot.types.InlineKeyboardButton(text='Никнейм', callback_data='username'))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Никнейм', callback_data='username'))
     else:
-        markup.add(telebot.types.InlineKeyboardButton(text=user[3], callback_data='first_name'))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text=user[3], callback_data='first_name'))
     if not user[3] is None:
-        markup.add(telebot.types.InlineKeyboardButton(text='Войти', callback_data='login'))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Войти', callback_data='login'))
     return markup
 
 
@@ -34,7 +41,7 @@ def create_InlineKeyboard_food(id):
             if food.food.name is None:
                 text = f'{food.food.calories}'
             else:
-                text=f'{food.food.name} - {food.food.calories}'
+                text = f'{food.food.name} - {food.food.calories}'
             markup.add(telebot.types.InlineKeyboardButton(
                 text=text,
                 callback_data=f'food_{food.food.name}_{food.food.calories}'
@@ -64,7 +71,7 @@ def create_InlineKeyboard_user_info(message):
     stage = UserStageGuide.objects.get(user=id)
     markup = telebot.types.InlineKeyboardMarkup()
     field = {
-        'Возраст': ['age', info.age ,'лет'],
+        'Возраст': ['age', info.age, 'лет'],
         'Рост': ['height', info.height, 'см'],
         'Пол': ['gender', info.gender, ''],
         'Ваш идельный вес': ['asdvsdfg', info.ideal_weight, 'кг'],
@@ -105,7 +112,7 @@ def create_InlineKeyboard_target(message, flag=False):
 
     elif target.type in TYPE[1:]:
         field = {
-            'Цель': ['my_target', target.type ,''],
+            'Цель': ['my_target', target.type, ''],
             'Текущий вес': ['change_weight', target.cur_weight, 'кг'],
             'Вес, который хотим': ['change_target', target.target_weight, 'кг'],
             'Активность': ['change_activity', target.activity, ''],
@@ -155,13 +162,13 @@ def cur_day_food(id, time):
         time__year=cur_time.year,
         time__month=cur_time.month,
         time__day=cur_time.day
-    ).values_list('id','name', 'calories', 'time')
+    ).values_list('id', 'name', 'calories', 'time')
 
     for id, name, calories, time in list(foods):
         if name is None:
-            text=f'{time.hour:02}:{time.minute:02} - {calories}кКл'
+            text = f'{time.hour:02}:{time.minute:02} - {calories}кКл'
         else:
-            text=f'{time.hour:02}:{time.minute:02} - {name} {calories}кКл'
+            text = f'{time.hour:02}:{time.minute:02} - {name} {calories}кКл'
 
         markup.add(telebot.types.InlineKeyboardButton(
             text=text,
@@ -236,3 +243,62 @@ def create_keyboard_stage(id):
         keyboard.add('Мои данные', 'Моя цель',
                      'Мастер обучения', 'Программа', 'Сброс')
     return keyboard
+
+
+def create_inline_program(id):
+    target = TargetUser.objects.filter(user=id).last()
+    program = target.program
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Цель: похудеть c {target.cur_weight} кг до {target.target_weight} кг',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Дата начала: {program.date_start}',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Рацион в начале: {program.start_dci} кКл',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Фаза 1: {program.phase1} дней',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Фаза 2: {program.phase2} дней',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Прошло дней: {program.cur_day}',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Текущий рацион: {program.cur_dci} кКл',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Текущий вес: {program.cur_weight} кг',
+            callback_data='change_weight_in_program'
+        )
+    )
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    ))
+    return markup

@@ -23,7 +23,7 @@ bot = telebot.TeleBot(TOKEN)
 #             calories INTEGER
 #         );
 
-#         CREATE TABLE IF NOT EXISTS user_food(    
+#         CREATE TABLE IF NOT EXISTS user_food(
 #             user_id INTEGER NOT NULL,
 #             food_id INTEGER NOT NULL,
 #             PRIMARY KEY (user_id, food_id),
@@ -104,7 +104,7 @@ def get_user(param):
 #         chat_id=id,
 #         message_id=message.message_id
 #     )
-    
+
 #     bot.edit_message_text(
 #         chat_id=id,
 #         message_id=message.message_id,
@@ -119,7 +119,7 @@ def get_activity(call):
     else:
         id = call.message.from_user.id
 
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
     target_user.activity = call.data
     target_user.save()
 
@@ -138,11 +138,11 @@ def get_activity(call):
         )
     )
 
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
     # проверка переходы на след этап
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in [target_user.type, target_user.activity])
-        and get_stage(id) == 1):
+            and get_stage(id) == 1):
 
         keyboard = telebot.types.ReplyKeyboardMarkup(True)
         markup = telebot.types.InlineKeyboardMarkup()
@@ -200,14 +200,15 @@ def get_gender(call):
     bot.send_message(
         chat_id=id,
         text='Укажите следующие данные',
-        reply_markup=InlineKeyboard.create_InlineKeyboard_user_info(call.message)
+        reply_markup=InlineKeyboard.create_InlineKeyboard_user_info(
+            call.message)
     )
 
     info_user = InfoUser.objects.get(user=id)
     # проверка переходы на след этап
     if (all([info_user.age, info_user.height])
         and info_user.gender != 'None'
-        and get_stage(id) == 0):
+            and get_stage(id) == 0):
 
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton(
@@ -229,6 +230,7 @@ def get_gender(call):
                   'Создайте свою первую цель, и мы поможем ее достигнуть.'),
             reply_markup=markup
         )
+
 
 def get_food(message):
     if message.from_user.is_bot:
@@ -256,12 +258,7 @@ def get_food(message):
             name = el[id_space+1:].strip()
 
         if not Button.check_int(calories):
-            bot.send_message(
-                chat_id=id,
-                text='Вводите согласно формату, повторите попытку',
-                reply_markup=markup
-            )
-            return
+            continue
         food, _ = Food.objects.get_or_create(name=name, calories=calories)
         user = User.objects.get(id=id)
         UserFood.objects.get_or_create(
@@ -306,7 +303,7 @@ def get_target(message):
     else:
         id = message.from_user.id
 
-    target_user = TargetUser.objects.get(user=id)
+    target_user = TargetUser.objects.filter(user=id).last()
     return target_user
 
 
@@ -371,7 +368,7 @@ def get_info(message):
 #                     reply_markup=keyboard
 #                 )
 #             con.commit()
-     
+
 
 def get_stage(id):
     user_stage_guide = UserStageGuide.objects.get(user=id)
@@ -418,7 +415,7 @@ def get_stage(id):
 #             text='Я все вспомнил',
 #             callback_data='skip_guide'
 #         ))
-    
+
 #     if not Button.check_int(message.text):
 #         bot.send_message(
 #             chat_id=id,

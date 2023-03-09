@@ -25,15 +25,12 @@ class InfoUser(models.Model):
 class TargetUser(models.Model):
     type = models.TextField(blank=True, null=True, default='None')
     activity = models.TextField(blank=True, null=True, default='None')
-    period = models.IntegerField(blank=True, null=True, default=0)
-    cur_week = models.IntegerField(blank=True, null=True, default=0)
-    cur_week_noraml_dci = models.IntegerField(blank=True, null=True, default=0)
     dci = models.IntegerField(blank=True, null=True, default=0)
     cur_dci = models.IntegerField(blank=True, null=True, default=0)
     cur_weight = models.IntegerField(blank=True, null=True, default=0)
     target_weight = models.IntegerField(blank=True, null=True, default=0)
     user = models.ForeignKey('User', models.CASCADE, related_name='target')
-    programm_ready = models.BooleanField(blank=True, null=True)
+    program = models.ForeignKey('UserProgram', models.SET_NULL, null=True)
 
 
 class User(models.Model):
@@ -56,13 +53,29 @@ class UserStageGuide(models.Model):
 
 
 class UserDayFood(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='day_food')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='day_food')
     name = models.TextField(blank=True, null=True)
     calories = models.IntegerField(blank=True, null=True)
     time = models.DateTimeField()
 
 
 class ResultDayDci(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='result_day_dci')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='result_day_dci')
     date = models.DateField()
     calories = models.IntegerField(default=0)
+
+
+class UserProgram(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='program'
+    )
+    date_start = models.DateField()
+    start_dci = models.IntegerField(blank=True, null=True, default=0)
+    cur_dci = models.IntegerField(blank=True, null=True, default=0)
+    phase1 = models.IntegerField(blank=True, null=True, default=0)
+    phase2 = models.IntegerField(blank=True, null=True, default=0)
+    cur_day = models.IntegerField(blank=True, null=True, default=0)
+    cur_weight = models.IntegerField(blank=True, null=True, default=0)
+    
