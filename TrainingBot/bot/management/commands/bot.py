@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.db.models import Max, Avg
+from django.db.models import Avg
 import telebot
 import schedule
 from datetime import datetime
@@ -244,12 +244,12 @@ class Command(BaseCommand):
             #         print(question)
             #         check_answer(message, question)
 
-        def stage_4_calories(message):
+        def stage_4_5_calories(message):
             id = message.from_user.id
             if id not in get_user('id'):
                 return False
 
-            if get_stage(id) == 4:
+            if get_stage(id) in (4, 5):
                 if any([x in message.text for x in ['-', '!', '^', ',', ';', ':', '#', '%', '?', r'\n']]):
                     bot.send_message(
                         chat_id=id,
@@ -271,7 +271,7 @@ class Command(BaseCommand):
                     except:
                         if message.text not in (
                             'Мастер обучения', 'Меню',
-                            'Текущие приемы пищи', 'Мониторинг',
+                            'Статистика за день', 'Мониторинг',
                                 'Мои данные', 'Моя цель', 'Сброс'):
                             bot.send_message(
                                 chat_id=id,
@@ -282,7 +282,7 @@ class Command(BaseCommand):
                     return True
             return False
 
-        @bot.message_handler(func=stage_4_calories)
+        @bot.message_handler(func=stage_4_5_calories)
         def calories(message):
             tmp = message.text.split('+')
             print(tmp)
@@ -455,7 +455,7 @@ class Command(BaseCommand):
                 bot.register_next_step_handler(message, change_cur_DCI)
             elif message.text == 'Начать сбор данных':
                 update_stage_4(id)
-            elif message.text == 'Текущие приемы пищи':
+            elif message.text == 'Статистика за день':
 
                 # user = User.objects.get(id=id)
                 # cur_time = datetime.fromtimestamp(message.date)
@@ -475,6 +475,12 @@ class Command(BaseCommand):
                     chat_id=id,
                     text=f'Сегодня вы поели на {calories}',
                     reply_markup=cur_day_food(id, message.date)
+                )
+            elif message.text == 'Статистика за неделю':
+                bot.send_message(
+                    chat_id=id,
+                    text='Приемы пищи за последние 7 дней',
+                    reply_markup=create_inline_week_eating(id, message)
                 )
             elif message.text == 'Мониторинг':
                 count_day = ResultDayDci.objects.filter(user=id).count()
@@ -525,7 +531,7 @@ class Command(BaseCommand):
                     text='Если вы хотите завершить мониторинг, то придется ввести текущее кол-во калорий вручную.',
                     reply_markup=markup
                 )
-            elif message.text == 'Программа':
+            elif message.text == 'Моя программа':
                 bot.send_message(
                     chat_id=id,
                     text=('Ваша программа и текущие показатели всегда доступны '
@@ -963,11 +969,62 @@ class Command(BaseCommand):
                 )
                 bot.send_message(
                     chat_id=id,
-                    text='Укажите текущий вес',
+                    text='Укажите ваш текущий вес',
                     reply_markup=markup
                 )
                 bot.register_next_step_handler(
                     call.message, change_weight_in_program)
+            elif call.data == 'week_eating':
+                bot.send_message(
+                    chat_id=id,
+                    text='Приемы пищи за последние 7 дней',
+                    reply_markup=create_inline_week_eating(id, call.message)
+                )
+            elif call.data.startswith('edit_week_eating_'):
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
+                bot.delete_message(
+                    chat_id=id,
+                    message_id=call.message.message_id
+                )
+                bot.send_message(
+                    chat_id=id,
+                    text='Введите новое количество калорий',
+                    reply_markup=markup
+                )
+                eating_id = call.data[17:]
+                bot.register_next_step_handler(
+                    call.message, week_eating, eating_id)
+            elif call.data == 'change_cur_target':
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Подтверждаю изменение текущей цели',
+                    callback_data='confirm_change_cur_target'
+                ))
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
+                bot.send_message(
+                    chat_id=id,
+                    text='При изменении цели необходимо будетт указать '
+                         'новый желаемый вес. При этом программа похудения '
+                         'будет перестроена и отсчет программы начнется заново.',
+                    reply_markup=markup
+                )
+            elif call.data == 'confirm_change_cur_target':
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
+                bot.send_message(
+                    chat_id=id,
+                    text='Сколько вы хотите весить',
+                    reply_markup=markup
+                )
+                bot.register_next_step_handler(
+                    call.message, change_cur_target)
 
         # def test():
         #     while True:

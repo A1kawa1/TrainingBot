@@ -65,6 +65,8 @@ class ResultDayDci(models.Model):
         User, on_delete=models.CASCADE, related_name='result_day_dci')
     date = models.DateField()
     calories = models.IntegerField(default=0)
+    deficit = models.IntegerField(blank=True, null=True)
+    cur_weight = models.IntegerField(blank=True, null=True)
 
 
 class UserProgram(models.Model):
@@ -78,4 +80,4 @@ class UserProgram(models.Model):
     phase2 = models.IntegerField(blank=True, null=True, default=0)
     cur_day = models.IntegerField(blank=True, null=True, default=0)
     cur_weight = models.IntegerField(blank=True, null=True, default=0)
-    
+    achievement = models.IntegerField(blank=True, null=True, default=0)

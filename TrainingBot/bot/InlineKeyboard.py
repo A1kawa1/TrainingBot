@@ -1,8 +1,9 @@
 import telebot
-from datetime import datetime
+from datetime import datetime, date
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
-from model.models import User, UserFood, UserDayFood, UserStageGuide, TargetUser
+from model.models import (User, UserFood, UserDayFood,
+                          UserStageGuide, TargetUser, ResultDayDci)
 
 
 def create_InlineKeyboard(user):
@@ -237,16 +238,17 @@ def create_keyboard_stage(id):
                      'Начать сбор данных', 'Я знаю сколько я ем сейчас', 'Сброс')
     elif stage == 4:
         keyboard.add('Мастер обучения', 'Меню',
-                     'Текущие приемы пищи', 'Мониторинг',
+                     'Статистика за день', 'Мониторинг',
                      'Мои данные', 'Моя цель', 'Сброс')
     elif stage == 5:
-        keyboard.add('Мои данные', 'Моя цель',
-                     'Мастер обучения', 'Программа', 'Сброс')
+        keyboard.add('Мои данные', 'Моя программа', 'Меню',
+                     'Мастер обучения', 'Статистика за день',
+                     'Статистика за неделю', 'Сброс')
     return keyboard
 
 
 def create_inline_program(id):
-    target = TargetUser.objects.filter(user=id).last()
+    target = TargetUser.objects.filter(user=User.objects.get(id=id)).last()
     program = target.program
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(
@@ -294,9 +296,57 @@ def create_inline_program(id):
     markup.add(
         telebot.types.InlineKeyboardButton(
             text=f'Текущий вес: {program.cur_weight} кг',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text=f'Достижение цели: {program.achievement}%',
+            callback_data='adfsgd'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text='Изменить текущую цель',
+            callback_data='change_cur_target'
+        )
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton(
+            text='Указать текущий вес',
             callback_data='change_weight_in_program'
         )
     )
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    ))
+    return markup
+
+
+def create_inline_week_eating(id, message):
+    data = list(ResultDayDci.objects.filter(user=id).order_by('-date'))
+    if data:
+        cur_time = datetime.fromtimestamp(message.date)
+        cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+        if data[0].date == cur_date:
+            data.pop(0)
+        if len(data) > 7:
+            data = data[:7]
+
+    print(data)
+    markup = telebot.types.InlineKeyboardMarkup()
+    if data:
+        for eating in data:
+            markup.add(telebot.types.InlineKeyboardButton(
+                text=f'{eating.date.strftime("%d:%m:%Y")} - {eating.calories}',
+                callback_data=f'edit_week_eating_{eating.id}'
+            ))
+    else:
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='У вас нет других приемов пищи',
+            callback_data='adfsgd'
+        ))
     markup.add(telebot.types.InlineKeyboardButton(
         text='Закрыть',
         callback_data='close'
