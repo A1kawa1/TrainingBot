@@ -13,3 +13,5 @@ TYPE = [
 ]
 
 K_PHASE2 = 2
+
+K_MESSAGE_DANGER = 25

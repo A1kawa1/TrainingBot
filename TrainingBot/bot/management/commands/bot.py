@@ -337,9 +337,18 @@ class Command(BaseCommand):
                 update_stage_5(data[1], message)
                 return
 
+            text = f'Сегодня вы поели на {calories}'
+            if SqlMain.get_stage(data[1]) == 5:
+                calories_norm = UserProgram.objects.filter(
+                    user=data[1]).last().cur_dci
+                print(calories / calories_norm * 100)
+                if calories / calories_norm * 100 > 100 - K_MESSAGE_DANGER:
+                    text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
+                    if calories > calories_norm:
+                        text = f'Сегодня вы поели на {calories}\nВы переели на {-(calories_norm-calories)}'
             bot.send_message(
                 chat_id=data[1],
-                text=f'Вы сегодня поели на {calories} кКл'
+                text=text
             )
 
         @bot.message_handler(content_types='text')
@@ -471,9 +480,15 @@ class Command(BaseCommand):
                     update_stage_5(id, message)
                     return
 
+                text = f'Сегодня вы поели на {calories}'
+                if get_stage(id) == 5:
+                    calories_norm = UserProgram.objects.filter(
+                        user=id).last().cur_dci
+                    text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
+
                 bot.send_message(
                     chat_id=id,
-                    text=f'Сегодня вы поели на {calories}',
+                    text=text,
                     reply_markup=cur_day_food(id, message.date)
                 )
             elif message.text == 'Статистика за неделю':

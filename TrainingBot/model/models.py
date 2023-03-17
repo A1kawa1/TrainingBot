@@ -29,6 +29,7 @@ class TargetUser(models.Model):
     cur_dci = models.IntegerField(blank=True, null=True, default=0)
     cur_weight = models.IntegerField(blank=True, null=True, default=0)
     target_weight = models.IntegerField(blank=True, null=True, default=0)
+    percentage_decrease = models.IntegerField(default=15)
     user = models.ForeignKey('User', models.CASCADE, related_name='target')
     program = models.ForeignKey('UserProgram', models.SET_NULL, null=True)
 

@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
-from bot.config import ACTIVITY, TYPE, TOKEN, K_PHASE2
+from bot.config import *
 
 from model.models import *
 
@@ -47,12 +47,7 @@ def change_DCI_ideal_weight(message):
     )
     print(inf)
     if (None not in inf) and ('None' not in inf):
-        if inf[3] == 'woomen':
-            DCI = int(
-                (655 + (9.6 * inf[2]) + (1.8 * inf[1]) - (4.7 * inf[0])) * ACTIVITY.get(inf[4]))
-        else:
-            DCI = int(
-                (66 + (13.7 * inf[2]) + (5 * inf[1]) - (6.8 * inf[0])) * ACTIVITY.get(inf[4]))
+        DCI = get_ideal_DCI(inf)
 
         target_user = TargetUser.objects.get(user=id)
         target_user.dci = DCI
@@ -309,6 +304,38 @@ def update_result_day_DCI(message):
         calories['calories__sum'] = 0
 
     cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+
+    if SqlMain.get_stage(id) == 5:
+        user_program = user.program.last()
+        user_target = user.target.last()
+        if len(user.result_day_dci.filter(date=cur_date)) == 0 and user_program.date_start != cur_date:
+            user_program.cur_day += 1
+            user_program.save()
+
+        dci = user.target.last().dci
+
+        if ((user_program.cur_day - user_program.phase1) == 1
+                and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
+            print('меняем фаза2')
+            print(int(dci * (1 - user_target.percentage_decrease / 100)))
+            user_program.cur_dci = get_normal_dci(
+                id, user_program.phase1, user_program.cur_day)
+            user_program.save()
+        else:
+            print('тест')
+            if (user_program.cur_day % 7 == 1
+                    and len(user.result_day_dci.filter(date=cur_date)) == 0
+                    and user_program.cur_day != 1
+                    and user_program.phase1 != 0):
+                print('меняем фаза1')
+                user_program.cur_dci = get_normal_dci(
+                    id, user_program.phase1, user_program.cur_day)
+                user_program.save()
+
+                if user_program.cur_dci < dci:
+                    user_program.cur_dci = dci
+                    user_program.save()
+
     if not ResultDayDci.objects.filter(
         user=user,
         date=cur_date
@@ -325,6 +352,7 @@ def update_result_day_DCI(message):
         )
 
     result_dci.calories = calories.get('calories__sum')
+    result_dci.deficit = user.target.last().dci - calories.get('calories__sum')
     result_dci.save()
 
     if SqlMain.get_stage(id) == 4:
@@ -395,9 +423,18 @@ def add_from_menu_day_DCI(call):
         chat_id=data[1],
         text=text
     )
+    text = f'Сегодня вы поели на {calories}'
+    if SqlMain.get_stage(data[1]) == 5:
+        calories_norm = UserProgram.objects.filter(
+            user=data[1]).last().cur_dci
+        print(calories / calories_norm * 100)
+        if calories / calories_norm * 100 > 100 - K_MESSAGE_DANGER:
+            text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
+            if calories > calories_norm:
+                text = f'Сегодня вы поели на {calories}\nВы переели на {-(calories_norm-calories)}'
     bot.send_message(
         chat_id=data[1],
-        text=f'Вы сегодня поели на {calories} кКл'
+        text=text
     )
 
 
@@ -471,9 +508,14 @@ def change_day_DCI(message, food_id):
         text='Вы изменили данные'
     )
 
+    text = f'Сегодня вы поели на {calories}'
+    if SqlMain.get_stage(id) == 5:
+        calories_norm = UserProgram.objects.filter(
+            user=id).last().cur_dci
+        text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
     bot.send_message(
         chat_id=id,
-        text=f'Сегодня вы поели на {calories}',
+        text=text,
         reply_markup=InlineKeyboard.cur_day_food(id, message.date)
     )
 
@@ -544,9 +586,14 @@ def delete_day_DCI(message, food_id):
         chat_id=id,
         text=f'Вы удалили {cal_delete}кКл'
     )
+    text = f'Сегодня вы поели на {calories}'
+    if SqlMain.get_stage(id) == 5:
+        calories_norm = UserProgram.objects.filter(
+            user=id).last().cur_dci
+        text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
     bot.send_message(
         chat_id=id,
-        text=f'Сегодня вы поели на {calories}',
+        text=text,
         reply_markup=InlineKeyboard.cur_day_food(id, message.date)
     )
 
@@ -818,12 +865,15 @@ def create_program(id, message):
     cur_weight = target.cur_weight
     target_weight = target.target_weight
 
+    print(f'phase1 = {(int((cur_dci - dci) / 100) + 1) * 7}')
     program = UserProgram(
         user=User.objects.get(id=id),
         date_start=cur_date,
         start_dci=cur_dci,
-        cur_dci=cur_dci,
-        phase1=int((cur_dci - dci) / 100 * 7)+1 if (cur_dci - dci) > 0 else 0,
+        cur_dci=cur_dci - 100 if (cur_dci - dci) > 0 else dci *
+        (1 - target.percentage_decrease / 100),
+        phase1=(int((cur_dci - dci) / 100) + 1) *
+        7 if (cur_dci - dci) > 0 else 0,
         phase2=(6000 * (cur_weight - target_weight) / 200
                 / K_PHASE2) if (cur_weight - target_weight) > 0 else 0,
         cur_day=1,
@@ -867,7 +917,7 @@ def change_weight_in_program(message):
     program_user = target_user.program
     program_user.cur_weight = round(float(message.text), 1)
     program_user.achievement = int((
-        1 - (target_user.cur_weight - program_user.cur_weight) /
+        (target_user.cur_weight - program_user.cur_weight) /
         (target_user.cur_weight - target_user.target_weight)
     ) * 100)
     program_user.save()
@@ -917,10 +967,13 @@ def change_cur_target(message):
         return
 
     user = User.objects.get(id=id)
-    cur_target = TargetUser.objects.filter(
-        user=user).last()
+    info_user = user.info.last()
+    cur_target = user.target.last()
 
-    kwargs = model_to_dict(cur_target, exclude=['id', 'user', 'program'])
+    kwargs = model_to_dict(
+        cur_target,
+        exclude=['id', 'user', 'program', 'dci']
+    )
     new_target = TargetUser(**kwargs)
     new_target.user = user
     new_target.target_weight = round(float(message.text), 1)
@@ -934,3 +987,38 @@ def change_cur_target(message):
               'по кнопке "Программа" в основном меню приложения.'),
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
+
+
+def get_normal_dci(id, phase1, cur_day):
+    user = User.objects.get(id=id)
+    user_target = user.target.last()
+
+    print('get_normal_dci')
+    print(phase1)
+    if cur_day > phase1:
+        return user_target.dci * (1 - user_target.percentage_decrease / 100)
+    else:
+        if cur_day % 7 == 0:
+            number_week = cur_day // 7
+        else:
+            number_week = cur_day // 7 + 1
+        return user_target.dci - 100 * number_week
+
+
+def get_ideal_DCI(inf):
+    """
+        inf = (
+            info_user.age,
+            info_user.height,
+            target_user.cur_weight,
+            info_user.gender,
+            target_user.activity
+        )
+    """
+    if inf[3] == 'woomen':
+        DCI = int(
+            (655 + (9.6 * inf[2]) + (1.8 * inf[1]) - (4.7 * inf[0])) * ACTIVITY.get(inf[4]))
+    else:
+        DCI = int(
+            (66 + (13.7 * inf[2]) + (5 * inf[1]) - (6.8 * inf[0])) * ACTIVITY.get(inf[4]))
+    return DCI
