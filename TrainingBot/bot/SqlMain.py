@@ -1,6 +1,7 @@
 import telebot
 import bot.Button as Button
 import bot.InlineKeyboard as InlineKeyboard
+from bot.SendMessage import template_send_message
 from bot.config import TOKEN
 from model.models import *
 
@@ -143,41 +144,7 @@ def get_activity(call):
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in [target_user.type, target_user.activity])
             and get_stage(id) == 1):
-
-        keyboard = telebot.types.ReplyKeyboardMarkup(True)
-        markup = telebot.types.InlineKeyboardMarkup()
-
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Начать обучение',
-            callback_data='start_guide'
-        ))
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Перейти на следующий уровень',
-            callback_data='skip_guide'
-        ))
-
-        keyboard.add('Мои данные', 'Моя цель')
-        user_stage_guide = UserStageGuide.objects.get(user=id)
-        user_stage_guide.stage = 2
-        user_stage_guide.save()
-
-        bot.send_message(
-            chat_id=id,
-            text=('Отлично, цель поставлена и она вполне достижима. '
-                  'Теперь нам надо создать программу управления весом, '
-                  'которая позволит каждый контролировать ваш рацион '
-                  'и приближать поставленную цель.'),
-            reply_markup=keyboard
-        )
-        bot.send_message(
-            chat_id=id,
-            text=('Перед тем как продолжить '
-                  'Вам необходимо пройти курс молодого бойца, '
-                  'который позволит без проблем определять количество калорий в каждом блюде. '
-                  'Если вы уже все умеете то курс можно пропустить и '
-                  'сразу перейти на следующий уровень.'),
-            reply_markup=markup
-        )
+        Button.update_stage_2(id)
 
 
 def get_gender(call):
@@ -209,27 +176,7 @@ def get_gender(call):
     if (all([info_user.age, info_user.height])
         and info_user.gender != 'None'
             and get_stage(id) == 0):
-
-        markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Создать цель',
-            callback_data='create_target'
-        ))
-        user_stage_guide = UserStageGuide.objects.get(user=id)
-        user_stage_guide.stage = 1
-        user_stage_guide.save()
-
-        bot.send_message(
-            chat_id=id,
-            text='Отлично, теперь мы знаем о вас немного больше.',
-            reply_markup=InlineKeyboard.create_keyboard_stage(id)
-        )
-        bot.send_message(
-            chat_id=id,
-            text=('Далее вам необходимо понять к чему вы стремитесь. '
-                  'Создайте свою первую цель, и мы поможем ее достигнуть.'),
-            reply_markup=markup
-        )
+        Button.update_stage_1(id)
 
 
 def get_food(message):

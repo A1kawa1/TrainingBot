@@ -40,6 +40,7 @@ class User(models.Model):
     last_name = models.TextField(blank=True, null=True)
     username = models.TextField(blank=True, null=True)
     guid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    datetime_start = models.DateTimeField(auto_now=True)
 
 
 class UserFood(models.Model):
@@ -49,7 +50,7 @@ class UserFood(models.Model):
 
 class UserStageGuide(models.Model):
     user = models.ForeignKey(User, models.CASCADE, related_name='stage')
-    stage = models.IntegerField(blank=True, null=True, default=0)
+    stage = models.IntegerField(blank=True, null=True, default=-1)
     question = models.IntegerField(blank=True, null=True, default=1)
 
 
@@ -82,3 +83,9 @@ class UserProgram(models.Model):
     cur_day = models.IntegerField(blank=True, null=True, default=0)
     cur_weight = models.IntegerField(blank=True, null=True, default=0)
     achievement = models.IntegerField(blank=True, null=True, default=0)
+
+
+class Message(models.Model):
+    mesKey = models.CharField(max_length=50)
+    order = models.PositiveIntegerField()
+    message = models.TextField()

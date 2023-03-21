@@ -27,9 +27,17 @@ class UserDayFoodAdmin(admin.ModelAdmin):
     empty_value_display = '-пусто-'
 
 
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('mesKey', 'order', 'message')
+    search_fields = ('mesKey',)
+    ordering = ('mesKey',)
+    empty_value_display = '-пусто-'
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(InfoUser, InfoUserAdmin)
 admin.site.register(TargetUser, TargetUserAdmin)
 admin.site.register(UserDayFood, UserDayFoodAdmin)
 admin.site.register(ResultDayDci)
 admin.site.register(UserProgram)
+admin.site.register(Message, MessageAdmin)

@@ -227,7 +227,9 @@ def detail_day_food(food_id):
 def create_keyboard_stage(id):
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
     stage = SqlMain.get_stage(id)
-    if stage == 0:
+    if stage == -1:
+        return telebot.types.ReplyKeyboardRemove()
+    elif stage == 0:
         keyboard.add('Мои данные', 'Сброс')
     elif stage == 1:
         keyboard.add('Мои данные', 'Моя цель', 'Сброс')
@@ -351,4 +353,37 @@ def create_inline_week_eating(id, message):
         text='Закрыть',
         callback_data='close'
     ))
+    return markup
+
+
+def last_message(mesKey):
+    markup = telebot.types.InlineKeyboardMarkup()
+    if mesKey == 'start_last':
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Начать работу',
+            callback_data='login'
+        ))
+    elif mesKey == 'stage1_last':
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Создать цель',
+            callback_data='create_target'
+        ))
+    elif mesKey == 'stage2_last':
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Начать обучение',
+            callback_data='start_guide'
+        ))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Перейти на следующий уровень',
+            callback_data='skip_guide'
+        ))
+    elif mesKey == 'stage3_last':
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Начать сбор данных',
+            callback_data='start_get_cur_DCI'
+        ))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Я знаю сколько я ем сейчас',
+            callback_data='get_cur_DCI'
+        ))
     return markup

@@ -5,8 +5,8 @@ from datetime import datetime, date, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
+from bot.SendMessage import template_send_message
 from bot.config import *
-
 from model.models import *
 
 
@@ -107,27 +107,10 @@ def change_info(message, field):
 
     info_user = InfoUser.objects.get(user=id)
 
-    if all([info_user.age, info_user.height]) and info_user.gender != 'None' and SqlMain.get_stage(id) == 0:
-        markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Создать цель',
-            callback_data='create_target'
-        ))
-        user_stage_guide = UserStageGuide.objects.get(user=id)
-        user_stage_guide.stage = 1
-        user_stage_guide.save()
-
-        bot.send_message(
-            chat_id=id,
-            text='Отлично, теперь мы знаем о вас немного больше.',
-            reply_markup=InlineKeyboard.create_keyboard_stage(id)
-        )
-        bot.send_message(
-            chat_id=id,
-            text=('Далее вам необходимо понять к чему вы стремитесь. '
-                  'Создайте свою первую цель, и мы поможем ее достигнуть.'),
-            reply_markup=markup
-        )
+    if (all([info_user.age, info_user.height])
+        and info_user.gender != 'None'
+            and SqlMain.get_stage(id) == 0):
+        update_stage_1(id)
 
 
 # def change_weight(message):
@@ -209,41 +192,7 @@ def change_target_weight(message, field):
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in (target_user.type, target_user.activity))
             and SqlMain.get_stage(id) == 1):
-
-        keyboard = telebot.types.ReplyKeyboardMarkup(True)
-        markup = telebot.types.InlineKeyboardMarkup()
-
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Начать обучение',
-            callback_data='start_guide'
-        ))
-        markup.add(telebot.types.InlineKeyboardButton(
-            text='Перейти на следующий уровень',
-            callback_data='skip_guide'
-        ))
-
-        keyboard.add('Мои данные', 'Моя цель')
-        user_stage_guide = UserStageGuide.objects.get(user=id)
-        user_stage_guide.stage = 2
-        user_stage_guide.save()
-
-        bot.send_message(
-            chat_id=id,
-            text=('Отлично, цель поставлена и она вполне достижима. '
-                  'Теперь нам надо создать программу управления весом, '
-                  'которая позволит каждый контролировать ваш рацион '
-                  'и приближать поставленную цель.'),
-            reply_markup=keyboard
-        )
-        bot.send_message(
-            chat_id=id,
-            text=('Перед тем как продолжить '
-                  'Вам необходимо пройти курс молодого бойца, '
-                  'который позволит без проблем определять количество калорий в каждом блюде. '
-                  'Если вы уже все умеете то курс можно пропустить и '
-                  'сразу перейти на следующий уровень.'),
-            reply_markup=markup
-        )
+        update_stage_2(id)
 
 
 def change_cur_DCI(message):
@@ -677,141 +626,90 @@ def check_variance(id):
         return (False, None)
 
     return analise_data(data)
-    # flg_day_skip = False
-    # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    # data = list(ResultDayDci.objects.filter(user=id).order_by('time').values_list('calories', 'time'))
-    # calories = [x[0] for x in data]
-    # time = [x[1] for x in data]
 
-    # if len(data) < 5:
-    #     print('мало данных')
-    #     return False
 
-    # res_time = [(el.month, el.day) for el in time[-4:-1]]
-    # print(time)
-    # print(res_time)
-    # for index, (month, day) in enumerate(res_time[:-1], 0):
-    #     if day == days[month-1]:
-    #         fday = 1
-    #         fmh = month+1
-    #     else:
-    #         fday = day + 1
-    #         fmh = month
-    #     if res_time[index+1][1] == fday and res_time[index+1][0] == fmh:
-    #         continue
-    #     elif res_time[index+1][1] == fday + 1 and res_time[index+1][0] == fmh:
-    #         if flg_day_skip:
-    #             print('пропущено более одного дня')
-    #             return False
-    #         flg_day_skip = True
-    #         continue
-    #     else:
-    #         print('даты не прошли')
-    #         return False
+def update_stage_1(id):
+    # markup = telebot.types.InlineKeyboardMarkup()
+    # markup.add(telebot.types.InlineKeyboardButton(
+    #     text='Создать цель',
+    #     callback_data='create_target'
+    # ))
+    user_stage_guide = UserStageGuide.objects.get(user=id)
+    user_stage_guide.stage = 1
+    user_stage_guide.save()
 
-    # print('даты прошли')
+    template_send_message(bot, id, 'stage1')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text='Отлично, теперь мы знаем о вас немного больше.',
+    #     reply_markup=InlineKeyboard.create_keyboard_stage(id)
+    # )
+    template_send_message(bot, id, 'stage1_last')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text=('Далее вам необходимо понять к чему вы стремитесь. '
+    #           'Создайте свою первую цель, и мы поможем ее достигнуть.'),
+    #     reply_markup=markup
+    # )
 
-    # res_calories = statistics.stdev(calories[-4:-1]) / statistics.mean(calories[-4:-1]) * 100
 
-    # print('res_calories =', res_calories)
-    # if not (res_calories <= 20):
-    #     return False
-    # return True
+def update_stage_2(id):
+    user_stage_guide = UserStageGuide.objects.get(user=id)
+    user_stage_guide.stage = 2
+    user_stage_guide.save()
 
-    # result = False
-    # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    # data = list(ResultDayDci.objects.filter(user=id).order_by('date').values_list('calories', 'date'))
-
-    # if len(data) < 5:
-    #     print('мало данных')
-    #     return False
-
-    # calories = [x[0] for x in data]
-    # time = [x[1] for x in data]
-    # print(calories)
-    # print('Исходные данные:')
-    # print(calories[1:-1])
-    # print(time[1:-1])
-    # print('-------------------')
-    # for index in range(len(calories[1:-1])-2):
-    #     flag_20 = True # 300 350 100 350 350 100 350 350 100
-    #     flag_date = True
-    #     flag_day_skip = False
-    #     tmp_calories = calories[1:-1][index:index+3]
-    #     tmp_time = [(el.month, el.day) for el in time[1:-1][index:index+3]]
-
-    #     print(tmp_calories)
-    #     print(tmp_time)
-
-    #     for index_el in range(len(tmp_calories)-1):
-    #         if not any([tmp_calories[index_el], tmp_calories[index_el+1]]):
-    #             flag_20 = False
-    #             break
-    #         print(abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])))
-    #         if not (abs(tmp_calories[index_el] - tmp_calories[index_el+1]) / max((tmp_calories[index_el], tmp_calories[index_el+1])) <= 0.2):
-    #             print('большая разница')
-    #             flag_20 = False
-    #             break
-
-    #         day = tmp_time[index_el][1]
-    #         month = tmp_time[index_el][0]
-    #         if day == days[month-1]:
-    #             fday = 1
-    #             fmh = month+1
-    #         else:
-    #             fday = day + 1
-    #             fmh = month
-    #         if tmp_time[index_el+1][1] == fday and tmp_time[index_el+1][0] == fmh:
-    #             continue
-    #         elif tmp_time[index_el+1][1] == fday + 1 and tmp_time[index_el+1][0] == fmh:
-    #             if flag_day_skip:
-    #                 print('пропущено более одного дня')
-    #                 flag_date = False
-    #                 break
-    #             flag_day_skip = True
-    #             continue
-    #         else:
-    #             print('даты не прошли')
-    #             flag_date = False
-    #             break
-
-    #     if flag_20 and flag_date:
-    #         print('это подходящие данные')
-    #         print('-------------------')
-    #         result = True
-
-    # return result
+    template_send_message(bot, id, 'stage2')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text=('Отлично, цель поставлена и она вполне достижима. '
+    #           'Теперь нам надо создать программу управления весом, '
+    #           'которая позволит каждый контролировать ваш рацион '
+    #           'и приближать поставленную цель.'),
+    #     reply_markup=keyboard
+    # )
+    template_send_message(bot, id, 'stage2_last')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text=('Перед тем как продолжить '
+    #           'Вам необходимо пройти курс молодого бойца, '
+    #           'который позволит без проблем определять количество калорий в каждом блюде. '
+    #           'Если вы уже все умеете то курс можно пропустить и '
+    #           'сразу перейти на следующий уровень.'),
+    #     reply_markup=markup
+    # )
 
 
 def update_stage_3(id):
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(
-        text='Начать сбор данных',
-        callback_data='start_get_cur_DCI'
-    ))
-    markup.add(telebot.types.InlineKeyboardButton(
-        text='Я знаю сколько я ем сейчас',
-        callback_data='get_cur_DCI'
-    ))
+    # markup = telebot.types.InlineKeyboardMarkup()
+    # markup.add(telebot.types.InlineKeyboardButton(
+    #     text='Начать сбор данных',
+    #     callback_data='start_get_cur_DCI'
+    # ))
+    # markup.add(telebot.types.InlineKeyboardButton(
+    #     text='Я знаю сколько я ем сейчас',
+    #     callback_data='get_cur_DCI'
+    # ))
     user_stage_guide = UserStageGuide.objects.get(user=id)
     user_stage_guide.stage = 3
     user_stage_guide.save()
 
-    bot.send_message(
-        chat_id=id,
-        text='Теперь вы умеете считать калории и определять сколько вы съели в течение дня',
-        reply_markup=InlineKeyboard.create_keyboard_stage(id)
-    )
-    bot.send_message(
-        chat_id=id,
-        text=(
-            'Настало время определить сколько калорий вы '
-            'съедаете сейчас. Для этого просто фиксируйте в приложении '
-            'каждый прием пищи. Если вы уже знаете сколько едите сейчас, '
-            'то данный шаг можно пропустить.'
-        ),
-        reply_markup=markup
-    )
+    template_send_message(bot, id, 'stage3')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text='Теперь вы умеете считать калории и определять сколько вы съели в течение дня',
+    #     reply_markup=InlineKeyboard.create_keyboard_stage(id)
+    # )
+    template_send_message(bot, id, 'stage3_last')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text=(
+    #         'Настало время определить сколько калорий вы '
+    #         'съедаете сейчас. Для этого просто фиксируйте в приложении '
+    #         'каждый прием пищи. Если вы уже знаете сколько едите сейчас, '
+    #         'то данный шаг можно пропустить.'
+    #     ),
+    #     reply_markup=markup
+    # )
 
 
 def update_stage_4(id):
@@ -833,24 +731,24 @@ def update_stage_5(id, message):
 
     create_program(id, message)
 
+    template_send_message(bot, id, 'stage5')
+    # bot.send_message(
+    #     chat_id=id,
+    #     text=('Теперь у нас достаточно данных чтобы рассчитать '
+    #           'для вас максимально эффективную программу '
+    #           'управления весом.'),
+    #     reply_markup=InlineKeyboard.create_keyboard_stage(id)
+    # )
+    # bot.send_message(
+    #     chat_id=id,
+    #     text=('Программа состоит из двух фаз. Фаза 1 - снижаем '
+    #           'калории до правильного уровня в соответсвии с '
+    #           'вашим образом жизни. Фаза 2 - вводим небольшой '
+    #           'дефицит калорий, для начала процесса похудения.'),
+    # )
     bot.send_message(
         chat_id=id,
-        text=('Теперь у нас достаточно данных чтобы рассчитать '
-              'для вас максимально эффективную программу '
-              'управления весом.'),
-        reply_markup=InlineKeyboard.create_keyboard_stage(id)
-    )
-    bot.send_message(
-        chat_id=id,
-        text=('Программа состоит из двух фаз. Фаза 1 - снижаем '
-              'калории до правильного уровня в соответсвии с '
-              'вашим образом жизни. Фаза 2 - вводим небольшой '
-              'дефицит калорий, для начала процесса похудения.'),
-    )
-    bot.send_message(
-        chat_id=id,
-        text=('Ваша программа и текущие показатели всегда доступны '
-              'по кнопке "Программа" в основном меню приложения.'),
+        text=('Ваша программа'),
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
 
@@ -865,17 +763,24 @@ def create_program(id, message):
     cur_weight = target.cur_weight
     target_weight = target.target_weight
 
+    phase1 = (int((cur_dci - dci) / 100) + 1) * 7 if (cur_dci - dci) > 0 else 0
+    phase2 = (6000 * (cur_weight - target_weight) / 200 /
+              K_PHASE2) if (cur_weight - target_weight) > 0 else 0
+    cur_dci_tmp = 0
+    if phase1 == 0:
+        cur_dci_tmp = dci * (1 - target.percentage_decrease / 100)
+    elif (cur_dci - dci) > 100:
+        cur_dci_tmp = cur_dci - 100
+    else:
+        cur_dci_tmp = dci
     print(f'phase1 = {(int((cur_dci - dci) / 100) + 1) * 7}')
     program = UserProgram(
         user=User.objects.get(id=id),
         date_start=cur_date,
         start_dci=cur_dci,
-        cur_dci=cur_dci - 100 if (cur_dci - dci) > 0 else dci *
-        (1 - target.percentage_decrease / 100),
-        phase1=(int((cur_dci - dci) / 100) + 1) *
-        7 if (cur_dci - dci) > 0 else 0,
-        phase2=(6000 * (cur_weight - target_weight) / 200
-                / K_PHASE2) if (cur_weight - target_weight) > 0 else 0,
+        cur_dci=cur_dci_tmp,
+        phase1=phase1,
+        phase2=phase2,
         cur_day=1,
         cur_weight=cur_weight,
         achievement=0
@@ -933,8 +838,7 @@ def change_weight_in_program(message):
     day_result.save()
     bot.send_message(
         chat_id=id,
-        text=('Ваша программа и текущие показатели всегда доступны '
-              'по кнопке "Программа" в основном меню приложения.'),
+        text=('Ваша программа'),
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
 
@@ -967,12 +871,11 @@ def change_cur_target(message):
         return
 
     user = User.objects.get(id=id)
-    info_user = user.info.last()
     cur_target = user.target.last()
 
     kwargs = model_to_dict(
         cur_target,
-        exclude=['id', 'user', 'program', 'dci']
+        exclude=['id', 'user', 'program']
     )
     new_target = TargetUser(**kwargs)
     new_target.user = user
@@ -983,8 +886,7 @@ def change_cur_target(message):
 
     bot.send_message(
         chat_id=id,
-        text=('Ваша программа и текущие показатели всегда доступны '
-              'по кнопке "Программа" в основном меню приложения.'),
+        text=('Ваша программа'),
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
 

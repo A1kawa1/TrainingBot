@@ -2,12 +2,15 @@ from django.core.management.base import BaseCommand
 from django.db.models import Avg
 import telebot
 import schedule
-from datetime import datetime
-from threading import Thread
+import pytz
+from datetime import datetime, timezone, timedelta, time
+import threading
+import signal
 from time import sleep
 from bot.SqlMain import *
 from bot.InlineKeyboard import *
 from bot.Button import *
+from bot.SendMessage import template_send_message
 from bot.config import ACTIVITY, TYPE, TOKEN
 
 
@@ -30,6 +33,11 @@ class Command(BaseCommand):
         def start(message):
             print('start')
             bot.clear_step_handler_by_chat_id(chat_id=message.chat.id)
+            # print(time_zon := datetime.fromtimestamp(
+            #     message.date).astimezone().tzinfo)
+            # print(datetime.now(time_zon))
+            # print(datetime.now(timezone(timedelta(hours=3))))
+            date_start = datetime.fromtimestamp(message.date)
             if message.from_user.is_bot:
                 id = message.chat.id
                 first_name = message.chat.first_name
@@ -59,7 +67,8 @@ class Command(BaseCommand):
                 id=id,
                 first_name=first_name,
                 last_name=last_name,
-                username=username
+                username=username,
+                datetime_start=date_start
             )
             user.save()
             info_user = InfoUser(user=user)
@@ -69,15 +78,23 @@ class Command(BaseCommand):
             user_stage_guide = UserStageGuide(user=user)
             user_stage_guide.save()
 
-            bot.send_message(
-                chat_id=id,
-                text=(
-                    f'{first_name}, вы новенький. Давайте же я расскажу, что умею.\n'
-                    f'Я помогу следить вам за вашими каллориями. Подберу для вас оптимальную программу питания и тренировок.\n'
-                    f'Давайте начнем работу.'
-                ),
-                reply_markup=markup
-            )
+            template_send_message(bot, id, 'start')
+            # bot.send_message(
+            #     chat_id=id,
+            #     text=(
+            #         f'{first_name}, вы новенький. Давайте же я расскажу, что умею.\n'
+            #         f'Я помогу следить вам за вашими каллориями. Подберу для вас оптимальную программу питания и тренировок.'
+            #     ),
+            #     reply_markup=telebot.types.ReplyKeyboardRemove()
+            # )
+            template_send_message(bot, id, 'start_last')
+            # bot.send_message(
+            #     chat_id=id,
+            #     text='Давайте начнем работу.',
+            #     reply_markup=markup
+            # )
+            user_stage_guide.stage = 0
+            user_stage_guide.save()
 
             # try:
             #     cur.execute(
@@ -372,9 +389,20 @@ class Command(BaseCommand):
             #     )
             #     bot.register_next_step_handler(message, get_food)
             elif message.text == 'Сброс':
-                user = User.objects.get(id=id)
-                user.delete()
-                start(message)
+                markup = telebot.types.InlineKeyboardMarkup()
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Подтвердить',
+                    callback_data='delete_profile'
+                ))
+                markup.add(telebot.types.InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                ))
+                bot.send_message(
+                    chat_id=id,
+                    text='Подтвердите сброс аккаунта',
+                    reply_markup=markup
+                )
             elif message.text == 'Что есть в моем рационе':
 
                 user = User.objects.get(id=id)
@@ -549,8 +577,7 @@ class Command(BaseCommand):
             elif message.text == 'Моя программа':
                 bot.send_message(
                     chat_id=id,
-                    text=('Ваша программа и текущие показатели всегда доступны '
-                          'по кнопке "Программа" в основном меню приложения.'),
+                    text=('Ваша программа'),
                     reply_markup=create_inline_program(id)
                 )
 
@@ -651,6 +678,10 @@ class Command(BaseCommand):
             elif id not in get_user('id'):
                 print('not user')
                 start(call.message)
+            elif call.data == 'delete_profile':
+                user = User.objects.get(id=id)
+                user.delete()
+                start(call.message)
             elif call.data == 'login':
                 if get_stage(id) != 0:
                     bot.send_message(
@@ -659,13 +690,14 @@ class Command(BaseCommand):
                         reply_markup=create_keyboard_stage(id)
                     )
                     return
-                bot.send_message(
-                    chat_id=id,
-                    text=('Мы рады, что вы присоединились к нам. '
-                          'Укажите дополнительные данные, '
-                          'мы будем использовать в дальнейшем для построения программы управления весом.'),
-                    reply_markup=create_keyboard_stage(id)
-                )
+                template_send_message(bot, id, 'stage0')
+                # bot.send_message(
+                #     chat_id=id,
+                #     text=('Мы рады, что вы присоединились к нам. '
+                #           'Укажите дополнительные данные, '
+                #           'мы будем использовать в дальнейшем для построения программы управления весом.'),
+                #     reply_markup=create_keyboard_stage(id)
+                # )
                 bot.send_message(
                     chat_id=id,
                     text='Укажите следующие данные',
@@ -969,8 +1001,7 @@ class Command(BaseCommand):
             elif call.data == 'program':
                 bot.send_message(
                     chat_id=id,
-                    text=('Ваша программа и текущие показатели всегда доступны '
-                          'по кнопке "Программа" в основном меню приложения.'),
+                    text=('Ваша программа'),
                     reply_markup=create_inline_program(id)
                 )
             elif call.data == 'change_weight_in_program':
@@ -1083,4 +1114,39 @@ class Command(BaseCommand):
         # Thread(target=update_period).start()
         # Thread(target=test).start()
 
+            # print(time_zon := datetime.fromtimestamp(
+            #     message.date).astimezone().tzinfo)
+            # print(datetime.now(time_zon))
+            # print(datetime.now(timezone(timedelta(hours=3))))
+        def bg_thread():
+            # reminds = {user: [0, 0] for user in users}
+            while True:
+                users = User.objects.all()
+                for user in users:
+                    time_zon = user.datetime_start.astimezone().tzinfo
+                    cur_time = datetime.now(time_zon)
+                    eating = user.day_food.filter(
+                        time__year=cur_time.year,
+                        time__month=cur_time.month,
+                        time__day=cur_time.day
+                    ).aggregate(Sum('calories')).get('calories__sum')
+
+                    norm = UserProgram(user=user).cur_dci
+                    if cur_time.time() > time(hour=19, minute=0, second=0) and eating < norm / 2:
+                        # template_send_message(bot, user.id, 'remind_second')
+                        print(f'{user.id} не указал половину')
+                    elif cur_time.time() > time(hour=13, minute=0, second=0) and eating in (0, None):
+                        # template_send_message(bot, user.id, 'remind_first')
+                        print(f'{user.id} не указал')
+
+                print('--------')
+                sleep(10)
+
+        th = threading.Thread(target=bg_thread)
+        th.daemon = True
+        th.start()
+        print('----------')
+        print('начало бота')
         bot.polling(non_stop=True, timeout=600)
+        print('конец бота')
+        print('----------')
