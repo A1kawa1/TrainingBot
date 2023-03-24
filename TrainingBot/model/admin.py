@@ -24,6 +24,7 @@ class TargetUserAdmin(admin.ModelAdmin):
 class UserDayFoodAdmin(admin.ModelAdmin):
     list_display = ('user', 'name', 'calories', 'time')
     search_fields = ('user',)
+    ordering = ('-time',)
     empty_value_display = '-пусто-'
 
 
@@ -34,10 +35,33 @@ class MessageAdmin(admin.ModelAdmin):
     empty_value_display = '-пусто-'
 
 
+class ResultDayDciAdmin(admin.ModelAdmin):
+    list_display = ('user', 'date', 'calories', 'deficit', 'cur_weight')
+    search_fields = ('user',)
+    ordering = ('-date',)
+    empty_value_display = '-пусто-'
+
+
+class UserProgramAdmin(admin.ModelAdmin):
+    list_display = ('user', 'date_start', 'start_dci', 'cur_dci', 'phase1',
+                    'phase2', 'cur_day', 'cur_weight', 'achievement')
+    search_fields = ('user',)
+    empty_value_display = '-пусто-'
+
+
+class RemindUserAdmin(admin.ModelAdmin):
+    list_display = ('user', 'remind_first', 'remind_second')
+    search_fields = ('user',)
+    ordering = ('user',)
+    empty_value_display = '-пусто-'
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(InfoUser, InfoUserAdmin)
 admin.site.register(TargetUser, TargetUserAdmin)
 admin.site.register(UserDayFood, UserDayFoodAdmin)
-admin.site.register(ResultDayDci)
-admin.site.register(UserProgram)
+admin.site.register(ResultDayDci, ResultDayDciAdmin)
+admin.site.register(UserProgram, UserProgramAdmin)
 admin.site.register(Message, MessageAdmin)
+admin.site.register(RemindUser, RemindUserAdmin)
+admin.site.register(UserStageGuide)

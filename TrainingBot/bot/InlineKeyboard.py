@@ -1,9 +1,8 @@
-import telebot
+﻿import telebot
 from datetime import datetime, date
 import bot.SqlMain as SqlMain
 from bot.config import TYPE
-from model.models import (User, UserFood, UserDayFood,
-                          UserStageGuide, TargetUser, ResultDayDci)
+from model.models import (User, UserStageGuide, TargetUser, ResultDayDci)
 
 
 def create_InlineKeyboard(user):
@@ -35,7 +34,7 @@ def create_InlineKeyboard(user):
 def create_InlineKeyboard_food(id):
     markup = telebot.types.InlineKeyboardMarkup()
     user = User.objects.get(id=id)
-    foods = UserFood.objects.filter(user=user)
+    foods = user.food.all()
 
     if foods.exists():
         for food in foods:
@@ -158,8 +157,7 @@ def cur_day_food(id, time):
 
     cur_time = datetime.fromtimestamp(time)
 
-    foods = UserDayFood.objects.filter(
-        user=user,
+    foods = user.day_food.filter(
         time__year=cur_time.year,
         time__month=cur_time.month,
         time__day=cur_time.day
@@ -336,12 +334,11 @@ def create_inline_week_eating(id, message):
         if len(data) > 7:
             data = data[:7]
 
-    print(data)
     markup = telebot.types.InlineKeyboardMarkup()
     if data:
         for eating in data:
             markup.add(telebot.types.InlineKeyboardButton(
-                text=f'{eating.date.strftime("%d:%m:%Y")} - {eating.calories}',
+                text=f'{eating.date.strftime("%d:%m:%Y")} - {eating.calories}, {eating.deficit}',
                 callback_data=f'edit_week_eating_{eating.id}'
             ))
     else:

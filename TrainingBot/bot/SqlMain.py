@@ -1,7 +1,6 @@
-import telebot
+﻿import telebot
 import bot.Button as Button
 import bot.InlineKeyboard as InlineKeyboard
-from bot.SendMessage import template_send_message
 from bot.config import TOKEN
 from model.models import *
 
@@ -139,7 +138,6 @@ def get_activity(call):
         )
     )
 
-    target_user = TargetUser.objects.filter(user=id).last()
     # проверка переходы на след этап
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in [target_user.type, target_user.activity])
@@ -171,7 +169,6 @@ def get_gender(call):
             call.message)
     )
 
-    info_user = InfoUser.objects.get(user=id)
     # проверка переходы на след этап
     if (all([info_user.age, info_user.height])
         and info_user.gender != 'None'

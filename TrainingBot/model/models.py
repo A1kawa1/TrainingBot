@@ -89,3 +89,10 @@ class Message(models.Model):
     mesKey = models.CharField(max_length=50)
     order = models.PositiveIntegerField()
     message = models.TextField()
+
+
+class RemindUser(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='remind')
+    remind_first = models.BooleanField(default=True)
+    remind_second = models.BooleanField(default=True)

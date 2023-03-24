@@ -1,6 +1,6 @@
-from django.db.models import Sum
+﻿from django.db.models import Sum
 from django.forms import model_to_dict
-import statistics
+from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime, date, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
@@ -45,11 +45,8 @@ def change_DCI_ideal_weight(message):
         info_user.gender,
         target_user.activity
     )
-    print(inf)
     if (None not in inf) and ('None' not in inf):
         DCI = get_ideal_DCI(inf)
-
-        target_user = TargetUser.objects.get(user=id)
         target_user.dci = DCI
         target_user.save()
 
@@ -59,7 +56,6 @@ def change_DCI_ideal_weight(message):
         else:
             ideal_weight = (4 * inf[1] / 2.54 - 128) * 0.453
 
-        info_user = InfoUser.objects.get(user=id)
         info_user.ideal_weight = round(ideal_weight, 1)
         info_user.save()
 
@@ -104,8 +100,6 @@ def change_info(message, field):
         text='Укажите следующие данные',
         reply_markup=InlineKeyboard.create_InlineKeyboard_user_info(message)
     )
-
-    info_user = InfoUser.objects.get(user=id)
 
     if (all([info_user.age, info_user.height])
         and info_user.gender != 'None'
@@ -187,8 +181,6 @@ def change_target_weight(message, field):
         reply_markup=markup
     )
 
-    target_user = TargetUser.objects.filter(user=id).last()
-
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in (target_user.type, target_user.activity))
             and SqlMain.get_stage(id) == 1):
@@ -242,6 +234,7 @@ def update_result_day_DCI(message):
 
     cur_time = datetime.fromtimestamp(message.date)
     user = User.objects.get(id=id)
+    remind = user.remind.last()
 
     calories = user.day_food.filter(
         time__year=cur_time.year,
@@ -252,11 +245,19 @@ def update_result_day_DCI(message):
     if calories.get('calories__sum') is None:
         calories['calories__sum'] = 0
 
+    if calories != 0:
+        remind.remind_first = False
+        remind.save()
     cur_date = date(cur_time.year, cur_time.month, cur_time.day)
 
+    user_program = user.program.last()
+    user_target = user.target.last()
     if SqlMain.get_stage(id) == 5:
-        user_program = user.program.last()
-        user_target = user.target.last()
+
+        if calories.get('calories__sum') > user_program.cur_dci / 2:
+            remind.remind_second = False
+            remind.save()
+
         if len(user.result_day_dci.filter(date=cur_date)) == 0 and user_program.date_start != cur_date:
             user_program.cur_day += 1
             user_program.save()
@@ -265,18 +266,14 @@ def update_result_day_DCI(message):
 
         if ((user_program.cur_day - user_program.phase1) == 1
                 and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
-            print('меняем фаза2')
-            print(int(dci * (1 - user_target.percentage_decrease / 100)))
             user_program.cur_dci = get_normal_dci(
                 id, user_program.phase1, user_program.cur_day)
             user_program.save()
         else:
-            print('тест')
             if (user_program.cur_day % 7 == 1
                     and len(user.result_day_dci.filter(date=cur_date)) == 0
                     and user_program.cur_day != 1
                     and user_program.phase1 != 0):
-                print('меняем фаза1')
                 user_program.cur_dci = get_normal_dci(
                     id, user_program.phase1, user_program.cur_day)
                 user_program.save()
@@ -300,12 +297,18 @@ def update_result_day_DCI(message):
             date=cur_date
         )
 
+    if SqlMain.get_stage(id) == 4:
+        norm = user_target.dci
+    else:
+        if user_program.cur_day > user_program.phase1:
+            norm = user_target.dci
+        else:
+            norm = user_program.cur_dci
     result_dci.calories = calories.get('calories__sum')
-    result_dci.deficit = user.target.last().dci - calories.get('calories__sum')
+    result_dci.deficit = norm - calories.get('calories__sum')
     result_dci.save()
 
     if SqlMain.get_stage(id) == 4:
-        print('-----------------------')
         tmp_res = check_variance(id)
         if tmp_res[0]:
             target_user = TargetUser.objects.filter(user=id).last()
@@ -313,7 +316,6 @@ def update_result_day_DCI(message):
             target_user.save()
             print('dci определено')
             return 'dci_success'
-        print('-----------------------')
     return result_dci.calories
 
 
@@ -372,179 +374,200 @@ def add_from_menu_day_DCI(call):
         chat_id=data[1],
         text=text
     )
-    text = f'Сегодня вы поели на {calories}'
-    if SqlMain.get_stage(data[1]) == 5:
-        calories_norm = UserProgram.objects.filter(
-            user=data[1]).last().cur_dci
-        print(calories / calories_norm * 100)
-        if calories / calories_norm * 100 > 100 - K_MESSAGE_DANGER:
-            text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
-            if calories > calories_norm:
-                text = f'Сегодня вы поели на {calories}\nВы переели на {-(calories_norm-calories)}'
+
+    text = create_text_stage_4_5(calories, data[1])
     bot.send_message(
         chat_id=data[1],
         text=text
     )
+    send_yesterday_remind(data[1], call.message)
 
 
-def detail_food(food_id):
-    food = UserDayFood.objects.get(id=food_id)
-    print(food.time)
-    if food.name is None:
-        text = f'{food.time.hour}:{food.time.minute} - {food.calories}кКл'
-    else:
-        text = f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
+def detail_food(food_id, user_id):
+    try:
+        food = UserDayFood.objects.get(id=food_id)
+        if food.name is None:
+            text = f'{food.time.hour}:{food.time.minute} - {food.calories}кКл'
+        else:
+            text = f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
 
-    bot.send_message(
-        chat_id=food.user.id,
-        text=text,
-        reply_markup=InlineKeyboard.detail_day_food(food_id)
-    )
+        bot.send_message(
+            chat_id=food.user.id,
+            text=text,
+            reply_markup=InlineKeyboard.detail_day_food(food_id)
+        )
+    except ObjectDoesNotExist:
+        bot.send_message(
+            chat_id=user_id,
+            text='Запись была удалена'
+        )
+    except Exception:
+        bot.send_message(
+            chat_id=user_id,
+            text='Неизвестная ошибка'
+        )
 
 
 def change_day_DCI(message, food_id):
-    if message.from_user.is_bot:
-        id = message.chat.id
-    else:
-        id = message.from_user.id
+    try:
+        if message.from_user.is_bot:
+            id = message.chat.id
+        else:
+            id = message.from_user.id
 
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(
-        text='Попробовать снова',
-        callback_data=f'detail_{food_id}'
-    ))
-    food = UserDayFood.objects.get(id=food_id)
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Попробовать снова',
+            callback_data=f'detail_{food_id}'
+        ))
+        food = UserDayFood.objects.get(id=food_id)
 
-    tmp = message.text.split()
-    print(tmp)
+        tmp = message.text.split()
 
-    if not check_int(tmp[0]):
+        if not check_int(tmp[0]):
+            bot.send_message(
+                chat_id=id,
+                text='Вводите целое число, повторите попытку',
+                reply_markup=markup
+            )
+            return
+        if int(tmp[0]) < 0:
+            bot.send_message(
+                chat_id=id,
+                text='Вводите положительное число, повторите попытку',
+                reply_markup=markup
+            )
+            return
+        food.calories = int(tmp[0])
+        if len(tmp) > 1:
+            food.name = ' '.join(tmp[1:])
+
+        food.save()
+
+        # user = User.objects.get(id=id)
+        # calories = user.day_food.all().aggregate(Sum('calories'))
+
+        # result_dci, _ = ResultDayDci.objects.get_or_create(
+        #     user=id,
+        #     time=datetime.fromtimestamp(message.date)
+        # )
+        # result_dci.calories = calories.get('calories__sum')
+        # result_dci.save()
+        calories = update_result_day_DCI(message)
+        if calories == 'dci_success':
+            update_stage_5(id, message)
+            return
+
         bot.send_message(
             chat_id=id,
-            text='Вводите целое число, повторите попытку',
-            reply_markup=markup
+            text='Вы изменили данные'
         )
-        return
-    if int(tmp[0]) < 0:
+
+        text = create_text_days_eating(calories, id)
+
         bot.send_message(
             chat_id=id,
-            text='Вводите положительное число, повторите попытку',
-            reply_markup=markup
+            text=text,
+            reply_markup=InlineKeyboard.cur_day_food(id, message.date)
         )
-        return
-    food.calories = int(tmp[0])
-    if len(tmp) > 1:
-        food.name = ' '.join(tmp[1:])
-
-    food.save()
-
-    # user = User.objects.get(id=id)
-    # calories = user.day_food.all().aggregate(Sum('calories'))
-
-    # result_dci, _ = ResultDayDci.objects.get_or_create(
-    #     user=id,
-    #     time=datetime.fromtimestamp(message.date)
-    # )
-    # result_dci.calories = calories.get('calories__sum')
-    # result_dci.save()
-    calories = update_result_day_DCI(message)
-    if calories == 'dci_success':
-        update_stage_5(id, message)
-        return
-
-    bot.send_message(
-        chat_id=id,
-        text='Вы изменили данные'
-    )
-
-    text = f'Сегодня вы поели на {calories}'
-    if SqlMain.get_stage(id) == 5:
-        calories_norm = UserProgram.objects.filter(
-            user=id).last().cur_dci
-        text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
-    bot.send_message(
-        chat_id=id,
-        text=text,
-        reply_markup=InlineKeyboard.cur_day_food(id, message.date)
-    )
+    except ObjectDoesNotExist:
+        bot.send_message(
+            chat_id=id,
+            text='Запись была удалена'
+        )
+    except Exception:
+        bot.send_message(
+            chat_id=id,
+            text='Неизвестная ошибка'
+        )
 
 
 def week_eating(message, eating_id):
-    if message.from_user.is_bot:
-        id = message.chat.id
-    else:
-        id = message.from_user.id
+    try:
+        if message.from_user.is_bot:
+            id = message.chat.id
+        else:
+            id = message.from_user.id
 
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(
-        text='Попробовать снова',
-        callback_data='week_eating'
-    ))
-    eating = ResultDayDci.objects.get(id=eating_id)
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Попробовать снова',
+            callback_data='week_eating'
+        ))
+        eating = ResultDayDci.objects.get(id=eating_id)
 
-    if not check_int(message.text):
+        if not check_int(message.text):
+            bot.send_message(
+                chat_id=id,
+                text='Вводите целое число, повторите попытку',
+                reply_markup=markup
+            )
+            return
+        if int(message.text) < 0:
+            bot.send_message(
+                chat_id=id,
+                text='Вводите положительное число, повторите попытку',
+                reply_markup=markup
+            )
+            return
+
+        eating.deficit += eating.calories - int(message.text)
+        eating.calories = int(message.text)
+        eating.save()
+
         bot.send_message(
             chat_id=id,
-            text='Вводите целое число, повторите попытку',
-            reply_markup=markup
+            text='Приемы пищи за последние 7 дней',
+            reply_markup=InlineKeyboard.create_inline_week_eating(id, message)
         )
-        return
-    if int(message.text) < 0:
+    except ObjectDoesNotExist:
         bot.send_message(
             chat_id=id,
-            text='Вводите положительное число, повторите попытку',
-            reply_markup=markup
+            text='Запись была удалена',
         )
-        return
-    eating.calories = int(message.text)
-    eating.save()
-
-    # user = User.objects.get(id=id)
-    # calories = user.day_food.all().aggregate(Sum('calories'))
-
-    # result_dci, _ = ResultDayDci.objects.get_or_create(
-    #     user=id,
-    #     time=datetime.fromtimestamp(message.date)
-    # )
-    # result_dci.calories = calories.get('calories__sum')
-    # result_dci.save()
-
-    bot.send_message(
-        chat_id=id,
-        text='Приемы пищи за последние 7 дней',
-        reply_markup=InlineKeyboard.create_inline_week_eating(id, message)
-    )
+    except Exception:
+        bot.send_message(
+            chat_id=id,
+            text='Неизвестная ошибка'
+        )
 
 
 def delete_day_DCI(message, food_id):
-    if message.from_user.is_bot:
-        id = message.chat.id
-    else:
-        id = message.from_user.id
+    try:
+        if message.from_user.is_bot:
+            id = message.chat.id
+        else:
+            id = message.from_user.id
 
-    food = UserDayFood.objects.get(id=food_id)
-    cal_delete = food.calories
-    food.delete()
+        food = UserDayFood.objects.get(id=food_id)
+        cal_delete = food.calories
+        food.delete()
 
-    calories = update_result_day_DCI(message)
-    if calories == 'dci_success':
-        update_stage_5(id, message)
-        return
+        calories = update_result_day_DCI(message)
+        if calories == 'dci_success':
+            update_stage_5(id, message)
+            return
 
-    bot.send_message(
-        chat_id=id,
-        text=f'Вы удалили {cal_delete}кКл'
-    )
-    text = f'Сегодня вы поели на {calories}'
-    if SqlMain.get_stage(id) == 5:
-        calories_norm = UserProgram.objects.filter(
-            user=id).last().cur_dci
-        text = f'Сегодня вы поели на {calories}\nОсталось {calories_norm-calories}'
-    bot.send_message(
-        chat_id=id,
-        text=text,
-        reply_markup=InlineKeyboard.cur_day_food(id, message.date)
-    )
+        bot.send_message(
+            chat_id=id,
+            text=f'Вы удалили {cal_delete}кКл'
+        )
+        text = create_text_days_eating(calories, id)
+        bot.send_message(
+            chat_id=id,
+            text=text,
+            reply_markup=InlineKeyboard.cur_day_food(id, message.date)
+        )
+    except ObjectDoesNotExist:
+        bot.send_message(
+            chat_id=id,
+            text='Запись была удалена'
+        )
+    except Exception:
+        bot.send_message(
+            chat_id=id,
+            text='Неизвестная ошибка'
+        )
 
 
 def create_data_to_analise(id):
@@ -564,7 +587,6 @@ def create_data_to_analise(id):
             res_calories.extend([0]*(days_delta.days-1))
 
     res_calories.append(calories[-1])
-    print(res_calories)
     return res_calories
 
 
@@ -612,9 +634,6 @@ def analise_data(data):
         if len(result) - result.count(0) >= 3:
             break
     if len(result) - result.count(0) >= 3:
-        print('--------------')
-        print(result)
-        print('--------------')
         return (True, int(sum(result)/len(result)))
     return (False, None)
 
@@ -748,7 +767,7 @@ def update_stage_5(id, message):
     # )
     bot.send_message(
         chat_id=id,
-        text=('Ваша программа'),
+        text='Ваша программа',
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
 
@@ -757,7 +776,8 @@ def create_program(id, message):
     cur_time = datetime.fromtimestamp(message.date)
     cur_date = date(cur_time.year, cur_time.month, cur_time.day)
 
-    target = TargetUser.objects.filter(user=id).last()
+    user = User.objects.get(id=id)
+    target = user.target.last()
     cur_dci = target.cur_dci
     dci = target.dci
     cur_weight = target.cur_weight
@@ -773,9 +793,9 @@ def create_program(id, message):
         cur_dci_tmp = cur_dci - 100
     else:
         cur_dci_tmp = dci
-    print(f'phase1 = {(int((cur_dci - dci) / 100) + 1) * 7}')
+
     program = UserProgram(
-        user=User.objects.get(id=id),
+        user=user,
         date_start=cur_date,
         start_dci=cur_dci,
         cur_dci=cur_dci_tmp,
@@ -818,7 +838,7 @@ def change_weight_in_program(message):
         return
     user = User.objects.get(id=id)
     target_user = user.target.last()
-    # target_user = TargetUser.objects.filter(user=user).last()
+
     program_user = target_user.program
     program_user.cur_weight = round(float(message.text), 1)
     program_user.achievement = int((
@@ -838,7 +858,7 @@ def change_weight_in_program(message):
     day_result.save()
     bot.send_message(
         chat_id=id,
-        text=('Ваша программа'),
+        text='Ваша программа',
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
 
@@ -895,8 +915,6 @@ def get_normal_dci(id, phase1, cur_day):
     user = User.objects.get(id=id)
     user_target = user.target.last()
 
-    print('get_normal_dci')
-    print(phase1)
     if cur_day > phase1:
         return user_target.dci * (1 - user_target.percentage_decrease / 100)
     else:
@@ -924,3 +942,60 @@ def get_ideal_DCI(inf):
         DCI = int(
             (66 + (13.7 * inf[2]) + (5 * inf[1]) - (6.8 * inf[0])) * ACTIVITY.get(inf[4]))
     return DCI
+
+
+def create_text_stage_4_5(calories, id):
+    text = f'Сегодня вы поели на {calories}'
+    if SqlMain.get_stage(id) == 5:
+        user = User.objects.get(id=id)
+        user_program = user.program.last()
+        calories_norm = user_program.cur_dci
+
+        calories_last = calories_norm - calories
+        if calories / calories_norm * 100 > 100 - K_MESSAGE_DANGER:
+            text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
+            if calories_last < 0:
+                text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+    return text
+
+
+def create_text_days_eating(calories, id):
+    text = f'Сегодня вы поели на {calories}'
+    if SqlMain.get_stage(id) == 5:
+        user = User.objects.get(id=id)
+        user_program = user.program.last()
+        calories_norm = user_program.cur_dci
+
+        calories_last = calories_norm - calories
+        text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
+        if calories_last < 0:
+            text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+    return text
+
+
+def send_yesterday_remind(id, message):
+    if SqlMain.get_stage(id) == 5:
+        cur_time = datetime.fromtimestamp(message.date)
+        user = User.objects.get(id=id)
+
+        day_food = user.day_food.filter(
+            time__year=cur_time.year,
+            time__month=cur_time.month,
+            time__day=cur_time.day
+        )
+
+        result_day_dci_all = list(user.result_day_dci.all())
+
+        if len(day_food) == 1:
+            if len(result_day_dci_all) >= 2:
+                deficit = result_day_dci_all[-2].deficit
+                if deficit > 0:
+                    mes = Message.objects.filter(
+                        mesKey='yesterday_deficit').last().message + f' Вы сэкономили {deficit} калорий'
+                else:
+                    mes = Message.objects.filter(
+                        mesKey='yesterday_proficit').last().message + f' Вы переели  на {-deficit} калорий'
+                bot.send_message(
+                    chat_id=id,
+                    text=mes
+                )
