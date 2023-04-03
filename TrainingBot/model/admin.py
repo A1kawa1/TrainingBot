@@ -50,7 +50,8 @@ class UserProgramAdmin(admin.ModelAdmin):
 
 
 class RemindUserAdmin(admin.ModelAdmin):
-    list_display = ('user', 'remind_first', 'remind_second')
+    list_display = ('user', 'remind_first', 'remind_second',
+                    'day_without_indication_weight', 'remind_weight')
     search_fields = ('user',)
     ordering = ('user',)
     empty_value_display = '-пусто-'

@@ -129,20 +129,31 @@ def get_activity(call):
         message_id=call.message.message_id
     )
 
-    bot.send_message(
-        chat_id=id,
-        text='Давайте выберем, что вы хотите',
-        reply_markup=InlineKeyboard.create_InlineKeyboard_target(
-            call.message,
-            False
-        )
-    )
+    markup = InlineKeyboard.create_InlineKeyboard_target(call.message, False)
 
     # проверка переходы на след этап
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in [target_user.type, target_user.activity])
             and get_stage(id) == 1):
+        if target_user.cur_weight <= target_user.target_weight:
+            bot.send_message(
+                chat_id=id,
+                text='Пожалуйста укажите коректный текущий вес и цель',
+                reply_markup=markup
+            )
+            return
+        bot.send_message(
+            chat_id=id,
+            text='Укажите следующие данные',
+            reply_markup=markup
+        )
         Button.update_stage_2(id)
+    else:
+        bot.send_message(
+            chat_id=id,
+            text='Укажите следующие данные',
+            reply_markup=markup
+        )
 
 
 def get_gender(call):

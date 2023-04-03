@@ -23,8 +23,9 @@ def check_int(x):
 
 def check_float(x):
     try:
+        x = x.replace(',', '.')
         y = float(x)
-        return True
+        return y
     except:
         return False
 
@@ -78,7 +79,7 @@ def change_info(message, field):
             reply_markup=markup
         )
         return
-    if int(message.text) < 0:
+    if int(message.text) <= 0:
         bot.send_message(
             chat_id=id,
             text='Вводите положительное число, повторите попытку',
@@ -150,14 +151,15 @@ def change_target_weight(message, field):
         text='Попробовать снова',
         callback_data=TYPE[1]
     ))
-    if not check_float(message.text):
+    weight = check_float(message.text)
+    if not weight:
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите целое или дробное число, повторите попытку',
             reply_markup=markup
         )
         return
-    if float(message.text) < 0:
+    if weight <= 0:
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите положительное число, повторите попытку',
@@ -167,24 +169,38 @@ def change_target_weight(message, field):
 
     target_user = TargetUser.objects.filter(user=id).last()
     if field == 'target_weight':
-        target_user.target_weight = round(float(message.text), 1)
+        target_user.target_weight = round(weight, 1)
     elif field == 'cur_weight':
-        target_user.cur_weight = round(float(message.text), 1)
+        target_user.cur_weight = round(weight, 1)
     target_user.save()
 
     change_DCI_ideal_weight(message)
 
     markup = InlineKeyboard.create_InlineKeyboard_target(message, False)
-    bot.send_message(
-        chat_id=id,
-        text='Укажите следующие данные',
-        reply_markup=markup
-    )
 
+    # проверка переходы на след этап
     if (all([target_user.cur_weight, target_user.target_weight])
         and ('None' not in (target_user.type, target_user.activity))
             and SqlMain.get_stage(id) == 1):
+        if target_user.cur_weight <= target_user.target_weight:
+            bot.send_message(
+                chat_id=id,
+                text='Пожалуйста укажите коректный текущий вес и цель',
+                reply_markup=markup
+            )
+            return
+        bot.send_message(
+            chat_id=id,
+            text='Укажите следующие данные',
+            reply_markup=markup
+        )
         update_stage_2(id)
+    else:
+        bot.send_message(
+            chat_id=id,
+            text='Укажите следующие данные',
+            reply_markup=markup
+        )
 
 
 def change_cur_DCI(message):
@@ -205,7 +221,7 @@ def change_cur_DCI(message):
             reply_markup=markup
         )
         return
-    if int(message.text) < 0:
+    if int(message.text) <= 0:
         bot.send_message(
             chat_id=id,
             text='Вводите положительное число, повторите попытку',
@@ -245,10 +261,11 @@ def update_result_day_DCI(message):
     if calories.get('calories__sum') is None:
         calories['calories__sum'] = 0
 
-    if calories != 0:
+    if calories.get('calories__sum') != 0:
         remind.remind_first = False
         remind.save()
-    cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+
+    cur_date = cur_time.date()
 
     user_program = user.program.last()
     user_target = user.target.last()
@@ -258,11 +275,15 @@ def update_result_day_DCI(message):
             remind.remind_second = False
             remind.save()
 
+        # if len(user.result_day_dci.filter(date=cur_date)) == 0 and user_program.date_start != cur_date:
+        #     user_program.cur_day += 1
+        #     user_program.save()
         if len(user.result_day_dci.filter(date=cur_date)) == 0 and user_program.date_start != cur_date:
-            user_program.cur_day += 1
+            user_program.cur_day = (
+                cur_date - user_program.date_start).days + 1
             user_program.save()
 
-        dci = user.target.last().dci
+        dci = user_target.dci
 
         if ((user_program.cur_day - user_program.phase1) == 1
                 and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
@@ -282,28 +303,34 @@ def update_result_day_DCI(message):
                     user_program.cur_dci = dci
                     user_program.save()
 
-    if not ResultDayDci.objects.filter(
+    # if not ResultDayDci.objects.filter(
+    #     user=user,
+    #     date=cur_date
+    # ).exists():
+    #     result_dci = ResultDayDci(
+    #         user=user,
+    #         date=cur_date
+    #     )
+    #     result_dci.save()
+    # else:
+    #     result_dci = ResultDayDci.objects.get(
+    #         user=user,
+    #         date=cur_date
+    #     )
+
+    result_dci, _ = ResultDayDci.objects.get_or_create(
         user=user,
         date=cur_date
-    ).exists():
-        result_dci = ResultDayDci(
-            user=user,
-            date=cur_date
-        )
-        result_dci.save()
-    else:
-        result_dci = ResultDayDci.objects.get(
-            user=user,
-            date=cur_date
-        )
+    )
 
     if SqlMain.get_stage(id) == 4:
         norm = user_target.dci
     else:
-        if user_program.cur_day > user_program.phase1:
-            norm = user_target.dci
-        else:
-            norm = user_program.cur_dci
+        # if user_program.cur_day > user_program.phase1:
+        #     norm = user_target.dci
+        # else:
+        #     norm = user_program.cur_dci
+        norm = user_program.cur_dci
     result_dci.calories = calories.get('calories__sum')
     result_dci.deficit = norm - calories.get('calories__sum')
     result_dci.save()
@@ -311,9 +338,8 @@ def update_result_day_DCI(message):
     if SqlMain.get_stage(id) == 4:
         tmp_res = check_variance(id)
         if tmp_res[0]:
-            target_user = TargetUser.objects.filter(user=id).last()
-            target_user.cur_dci = tmp_res[1]
-            target_user.save()
+            user_target.cur_dci = tmp_res[1]
+            user_target.save()
             print('dci определено')
             return 'dci_success'
     return result_dci.calories
@@ -431,7 +457,7 @@ def change_day_DCI(message, food_id):
                 reply_markup=markup
             )
             return
-        if int(tmp[0]) < 0:
+        if int(tmp[0]) <= 0:
             bot.send_message(
                 chat_id=id,
                 text='Вводите положительное число, повторите попытку',
@@ -503,7 +529,7 @@ def week_eating(message, eating_id):
                 reply_markup=markup
             )
             return
-        if int(message.text) < 0:
+        if int(message.text) <= 0:
             bot.send_message(
                 chat_id=id,
                 text='Вводите положительное число, повторите попытку',
@@ -772,9 +798,8 @@ def update_stage_5(id, message):
     )
 
 
-def create_program(id, message):
-    cur_time = datetime.fromtimestamp(message.date)
-    cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+def create_program(id, message, for_cur_target=False):
+    cur_date = datetime.fromtimestamp(message.date).date()
 
     user = User.objects.get(id=id)
     target = user.target.last()
@@ -794,6 +819,23 @@ def create_program(id, message):
     else:
         cur_dci_tmp = dci
 
+    if for_cur_target:
+        cur_program = user.program.last()
+        cur_weight = cur_program.cur_weight
+        cur_program.date_start = cur_date
+        cur_program.start_dci = cur_dci
+        cur_program.cur_dci = cur_dci_tmp
+        cur_program.phase1 = phase1
+        cur_program.phase2 = phase2
+        cur_program.cur_day = 1
+        cur_program.cur_weight = cur_weight
+        cur_program.achievement = int((
+            (target.cur_weight - cur_weight) /
+            (target.cur_weight - target.target_weight)
+        ) * 100)
+        cur_program.save()
+        return
+
     program = UserProgram(
         user=user,
         date_start=cur_date,
@@ -805,6 +847,7 @@ def create_program(id, message):
         cur_weight=cur_weight,
         achievement=0
     )
+
     program.save()
 
     target.program = program
@@ -822,14 +865,15 @@ def change_weight_in_program(message):
         callback_data='program'
     ))
 
-    if not check_float(message.text):
+    weight = check_float(message.text)
+    if not weight:
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите целое или дробное число, повторите попытку',
             reply_markup=markup
         )
         return
-    if float(message.text) < 0:
+    if weight <= 0:
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите положительное число, повторите попытку',
@@ -840,27 +884,35 @@ def change_weight_in_program(message):
     target_user = user.target.last()
 
     program_user = target_user.program
-    program_user.cur_weight = round(float(message.text), 1)
+    program_user.cur_weight = round(weight, 1)
+    program_user.save()
     program_user.achievement = int((
         (target_user.cur_weight - program_user.cur_weight) /
         (target_user.cur_weight - target_user.target_weight)
     ) * 100)
     program_user.save()
 
-    cur_time = datetime.fromtimestamp(message.date)
-    cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+    cur_date = datetime.fromtimestamp(message.date).date()
 
-    day_result, _ = ResultDayDci.objects.get_or_create(
+    day_result, create = ResultDayDci.objects.get_or_create(
         user=user,
         date=cur_date
     )
-    day_result.cur_weight = round(float(message.text), 1)
+
+    day_result.cur_weight = round(weight, 1)
+    if create == True:
+        day_result.deficit = program_user.cur_dci
     day_result.save()
+
     bot.send_message(
         chat_id=id,
         text='Ваша программа',
         reply_markup=InlineKeyboard.create_inline_program(id)
     )
+    if program_user.achievement >= 100:
+        template_send_message(bot, id, 'target_achieved')
+        target_user.achieved = True
+        target_user.save()
 
 
 def change_cur_target(message):
@@ -875,34 +927,59 @@ def change_cur_target(message):
         callback_data='program'
     ))
 
-    if not check_float(message.text):
+    user = User.objects.get(id=id)
+    cur_target = user.target.last()
+    cur_program = user.program.last()
+
+    weight = check_float(message.text)
+    if not weight:
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите целое или дробное число, повторите попытку',
             reply_markup=markup
         )
         return
-    if float(message.text) < 0:
+    if weight <= 0:
         bot.send_message(
             chat_id=message.chat.id,
             text='Вводите положительное число, повторите попытку',
             reply_markup=markup
         )
         return
+    if weight >= cur_program.cur_weight:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text='Вводите вес меньше текущего, повторите попытку',
+            reply_markup=markup
+        )
+        return
 
-    user = User.objects.get(id=id)
-    cur_target = user.target.last()
+    # kwargs = model_to_dict(
+    #     cur_target,
+    #     exclude=['id', 'user', 'program']
+    # )
 
-    kwargs = model_to_dict(
-        cur_target,
-        exclude=['id', 'user', 'program']
-    )
-    new_target = TargetUser(**kwargs)
-    new_target.user = user
-    new_target.target_weight = round(float(message.text), 1)
-    new_target.save()
+    # new_target = TargetUser(**kwargs)
+    # new_target.dci = get_ideal_DCI(
+    #     (
+    #         info_user.age,
+    #         info_user.height,
+    #         cur_program.cur_weight,
+    #         info_user.gender,
+    #         cur_target.activity
+    #     )
+    # )
+    # new_target.cur_dci = cur_program.cur_dci
+    # new_target.cur_weight = cur_program.cur_weight
+    # new_target.target_weight = round(float(message.text), 1)
+    # new_target.user = user
+    # new_target.save()
 
-    create_program(id, message)
+    cur_target.cur_dci = cur_program.cur_dci
+    cur_target.target_weight = round(weight, 1)
+    cur_target.save()
+
+    create_program(id, message, True)
 
     bot.send_message(
         chat_id=id,
@@ -989,7 +1066,12 @@ def send_yesterday_remind(id, message):
         if len(day_food) == 1:
             if len(result_day_dci_all) >= 2:
                 deficit = result_day_dci_all[-2].deficit
-                if deficit > 0:
+                result = result_day_dci_all[-2].calories
+                if result == 0:
+                    template_send_message(
+                        bot, id, 'yesterday_non_calories')
+                    return
+                elif deficit > 0:
                     mes = Message.objects.filter(
                         mesKey='yesterday_deficit').last().message + f' Вы сэкономили {deficit} калорий'
                 else:

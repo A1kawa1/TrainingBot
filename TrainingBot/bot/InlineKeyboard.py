@@ -263,9 +263,15 @@ def create_inline_program(id):
             callback_data='adfsgd'
         )
     )
+    # markup.add(
+    #     telebot.types.InlineKeyboardButton(
+    #         text=f'Рацион в начале: {program.start_dci} кКл',
+    #         callback_data='adfsgd'
+    #     )
+    # )
     markup.add(
         telebot.types.InlineKeyboardButton(
-            text=f'Рацион в начале: {program.start_dci} кКл',
+            text=f'Норма потребления: {target.dci} кКл',
             callback_data='adfsgd'
         )
     )
@@ -325,10 +331,14 @@ def create_inline_program(id):
 
 
 def create_inline_week_eating(id, message):
-    data = list(ResultDayDci.objects.filter(user=id).order_by('-date'))
+    user = User.objects.get(id=id)
+    data = list(user.result_day_dci.all().order_by('-date'))
+    # last_program_date = user.program.last().date_start
+    # data = list(user.result_day_dci.filter(
+    #     date__gte=last_program_date).order_by('-date'))
     if data:
-        cur_time = datetime.fromtimestamp(message.date)
-        cur_date = date(cur_time.year, cur_time.month, cur_time.day)
+        cur_date = datetime.fromtimestamp(message.date).date()
+
         if data[0].date == cur_date:
             data.pop(0)
         if len(data) > 7:

@@ -1,4 +1,5 @@
 from django.db import models
+from datetime import datetime
 import uuid
 
 
@@ -27,11 +28,12 @@ class TargetUser(models.Model):
     activity = models.TextField(blank=True, null=True, default='None')
     dci = models.IntegerField(blank=True, null=True, default=0)
     cur_dci = models.IntegerField(blank=True, null=True, default=0)
-    cur_weight = models.IntegerField(blank=True, null=True, default=0)
-    target_weight = models.IntegerField(blank=True, null=True, default=0)
+    cur_weight = models.FloatField(blank=True, null=True, default=0)
+    target_weight = models.FloatField(blank=True, null=True, default=0)
     percentage_decrease = models.IntegerField(default=15)
     user = models.ForeignKey('User', models.CASCADE, related_name='target')
     program = models.ForeignKey('UserProgram', models.SET_NULL, null=True)
+    achieved = models.BooleanField(default=False)
 
 
 class User(models.Model):
@@ -68,7 +70,24 @@ class ResultDayDci(models.Model):
     date = models.DateField()
     calories = models.IntegerField(default=0)
     deficit = models.IntegerField(blank=True, null=True)
-    cur_weight = models.IntegerField(blank=True, null=True)
+    cur_weight = models.FloatField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        super(ResultDayDci, self).save(*args, **kwargs)
+        time_zon = self.user.datetime_start.astimezone().tzinfo
+        cur_date = datetime.now(time_zon).date()
+
+        result_day_dci = self.user.result_day_dci.filter(
+            ~models.Q(cur_weight=None))
+
+        if len(result_day_dci) == 0:
+            dif_date = (cur_date - self.user.program.last().date_start).days
+        else:
+            dif_date = (cur_date - result_day_dci.last().date).days
+        dif_date = dif_date % 7 if dif_date != 0 else 1
+        remind = self.user.remind.last()
+        remind.day_without_indication_weight = dif_date
+        remind.save()
 
 
 class UserProgram(models.Model):
@@ -81,7 +100,7 @@ class UserProgram(models.Model):
     phase1 = models.IntegerField(blank=True, null=True, default=0)
     phase2 = models.IntegerField(blank=True, null=True, default=0)
     cur_day = models.IntegerField(blank=True, null=True, default=0)
-    cur_weight = models.IntegerField(blank=True, null=True, default=0)
+    cur_weight = models.FloatField(blank=True, null=True, default=0)
     achievement = models.IntegerField(blank=True, null=True, default=0)
 
 
@@ -96,3 +115,5 @@ class RemindUser(models.Model):
         User, on_delete=models.CASCADE, related_name='remind')
     remind_first = models.BooleanField(default=True)
     remind_second = models.BooleanField(default=True)
+    day_without_indication_weight = models.PositiveIntegerField(default=1)
+    remind_weight = models.BooleanField(default=True)

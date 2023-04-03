@@ -21,8 +21,16 @@ def template_send_message(bot, chat_id, key):
 
 
 def check_remind(cur_time, user):
-    remind_first = user.remind.last().remind_first
-    remind_second = user.remind.last().remind_second
+    remind = user.remind.last()
+    remind_first = remind.remind_first
+    remind_second = remind.remind_second
+    day_without_indication_weight = remind.day_without_indication_weight
+    remind_weight = remind.remind_weight
+    if (cur_time.time() > time(hour=12, minute=0, second=0)
+        and cur_time.time() < time(hour=21, minute=0, second=0)
+            and day_without_indication_weight == 0
+            and remind_weight == True):
+        return 'send_weight'
     if (cur_time.time() > time(hour=15, minute=0, second=0)
         and cur_time.time() < time(hour=21, minute=0, second=0)
             and remind_first == True):
