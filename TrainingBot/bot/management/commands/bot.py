@@ -1178,51 +1178,53 @@ class Command(BaseCommand):
                                    & (Q(user__remind__remind_first=False)
                                       & Q(user__remind__remind_second=False)))
                 for remind in reminds:
-                    user = remind.user
-                    remind = user.remind.last()
-                    time_zon = user.datetime_start.astimezone().tzinfo
-                    cur_time = datetime.now(time_zon)
-                    res = check_remind(cur_time, user)
+                    try:
+                        user = remind.user
+                        remind = user.remind.last()
+                        time_zon = user.datetime_start.astimezone().tzinfo
+                        cur_time = datetime.now(time_zon)
+                        res = check_remind(cur_time, user)
 
-                    if res == 'send_weight':
-                        template_send_message(
-                            bot, user.id, 'remind_weight')
-                        remind.day_without_indication_weight = 1
-                        remind.remind_weight = False
-                        remind.save()
-                    elif res == 'send_first':
-                        template_send_message(
-                            bot, user.id, 'remind_first')
-                        remind.remind_first = False
-                        remind.save()
-                        cur_date = cur_time.date()
-                        day_result, create = ResultDayDci.objects.get_or_create(
-                            user=user,
-                            date=cur_date
-                        )
-                        if create == True:
-                            target_user = user.target.last()
-                            program_user = target_user.program
-                            day_result.deficit = program_user.cur_dci
-                            if program_user.date_start != cur_date:
-                                program_user.cur_day = (
-                                    cur_date - program_user.date_start).days + 1
-                                program_user.save()
-                            day_result.save()
-                    elif res == 'send_second':
-                        template_send_message(
-                            bot, user.id, 'remind_second')
-                        remind.remind_second = False
-                        remind.save()
-
-                    if (cur_time.time() < time(hour=9, minute=0, second=0)
-                            and (remind.remind_second == False or remind.remind_first == False or remind.remind_weight == False)):
-                        remind.remind_first = True
-                        remind.remind_second = True
-                        remind.remind_weight = True
-                        if remind.day_without_indication_weight == 0:
+                        if res == 'send_weight':
+                            template_send_message(
+                                bot, user.id, 'remind_weight')
                             remind.day_without_indication_weight = 1
-                        remind.save()
+                            remind.remind_weight = False
+                            remind.save()
+                        elif res == 'send_first':
+                            template_send_message(
+                                bot, user.id, 'remind_first')
+                            remind.remind_first = False
+                            remind.save()
+                            cur_date = cur_time.date()
+                            day_result, create = ResultDayDci.objects.get_or_create(
+                                user=user,
+                                date=cur_date
+                            )
+                            if create == True:
+                                target_user = user.target.last()
+                                program_user = target_user.program
+                                day_result.deficit = program_user.cur_dci
+                                if program_user.date_start != cur_date:
+                                    program_user.cur_day = (
+                                        cur_date - program_user.date_start).days + 1
+                                    program_user.save()
+                                day_result.save()
+                        elif res == 'send_second':
+                            template_send_message(
+                                bot, user.id, 'remind_second')
+                            remind.remind_second = False
+                            remind.save()
+                        if (cur_time.time() < time(hour=9, minute=0, second=0)
+                                and (remind.remind_second == False or remind.remind_first == False or remind.remind_weight == False)):
+                            remind.remind_first = True
+                            remind.remind_second = True
+                            remind.remind_weight = True
+                            if remind.day_without_indication_weight == 0:
+                                remind.day_without_indication_weight = 1
+                            remind.save()
+                    except Exception:
+                        ...
                 for set_flag in set_flags:
                     user = set_flag.user
                     remind = user.remind.last()
@@ -1235,7 +1237,7 @@ class Command(BaseCommand):
                         if remind.day_without_indication_weight == 0:
                             remind.day_without_indication_weight = 1
                         remind.save()
-                sleep(60*60)
+                sleep(5)
                 # users_id = list(UserStageGuide.objects.filter(
                 #     stage__in=[4, 5]).values_list('user', flat=True))
                 # for id in users_id:
