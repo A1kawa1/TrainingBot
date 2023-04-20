@@ -1,13 +1,14 @@
 ﻿from django.db.models import Sum
-from django.forms import model_to_dict
+# from django.forms import model_to_dict
 from django.core.exceptions import ObjectDoesNotExist
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 import telebot
 import bot.InlineKeyboard as InlineKeyboard
 import bot.SqlMain as SqlMain
 from bot.SendMessage import template_send_message
 from bot.config import *
 from model.models import *
+from TrainingBot.settings import TOKEN
 
 
 bot = telebot.TeleBot(TOKEN)
@@ -267,9 +268,9 @@ def update_result_day_DCI(message):
 
     cur_date = cur_time.date()
 
-    user_program = user.program.last()
     user_target = user.target.last()
     if SqlMain.get_stage(id) == 5:
+        user_program = user.program.last()
 
         if calories.get('calories__sum') > user_program.cur_dci / 2:
             remind.remind_second = False
@@ -283,40 +284,8 @@ def update_result_day_DCI(message):
                 cur_date - user_program.date_start).days + 1
             user_program.save()
 
-        dci = user_target.dci
-
-        if ((user_program.cur_day - user_program.phase1) == 1
-                and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
-            user_program.cur_dci = get_normal_dci(
-                id, user_program.phase1, user_program.cur_day)
-            user_program.save()
-        else:
-            if (user_program.cur_day % 7 == 1
-                    and len(user.result_day_dci.filter(date=cur_date)) == 0
-                    and user_program.cur_day != 1
-                    and user_program.phase1 != 0):
-                user_program.cur_dci = get_normal_dci(
-                    id, user_program.phase1, user_program.cur_day)
-                user_program.save()
-
-                if user_program.cur_dci < dci:
-                    user_program.cur_dci = dci
-                    user_program.save()
-
-    # if not ResultDayDci.objects.filter(
-    #     user=user,
-    #     date=cur_date
-    # ).exists():
-    #     result_dci = ResultDayDci(
-    #         user=user,
-    #         date=cur_date
-    #     )
-    #     result_dci.save()
-    # else:
-    #     result_dci = ResultDayDci.objects.get(
-    #         user=user,
-    #         date=cur_date
-    #     )
+        update_normal_dci(user, user_program,
+                          user_target, cur_date)
 
     result_dci, _ = ResultDayDci.objects.get_or_create(
         user=user,
@@ -999,7 +968,10 @@ def get_normal_dci(id, phase1, cur_day):
             number_week = cur_day // 7
         else:
             number_week = cur_day // 7 + 1
-        return user_target.dci - 100 * number_week
+        tmp = user_target.cur_dci - 100 * number_week
+        if tmp < user_target.dci:
+            tmp = user_target.dci
+        return tmp
 
 
 def get_ideal_DCI(inf):
@@ -1061,9 +1033,8 @@ def send_yesterday_remind(id, message):
             time__day=cur_time.day
         )
 
-        result_day_dci_all = list(user.result_day_dci.all())
-
         if len(day_food) == 1:
+            result_day_dci_all = list(user.result_day_dci.all())
             if len(result_day_dci_all) >= 2:
                 deficit = result_day_dci_all[-2].deficit
                 result = result_day_dci_all[-2].calories
@@ -1081,3 +1052,20 @@ def send_yesterday_remind(id, message):
                     chat_id=id,
                     text=mes
                 )
+
+
+def update_normal_dci(user, user_program, user_target, cur_date):
+    dci = user_target.dci
+
+    if ((user_program.cur_day - user_program.phase1) == 1
+            and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
+        user_program.cur_dci = get_normal_dci(
+            user.id, user_program.phase1, user_program.cur_day)
+    else:
+        if (len(user.result_day_dci.filter(date=cur_date)) == 0
+            and user_program.cur_day != 1
+                and user_program.phase1 != 0):
+            user_program.cur_dci = get_normal_dci(
+                user.id, user_program.phase1, user_program.cur_day)
+
+    user_program.save()

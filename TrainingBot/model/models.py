@@ -42,7 +42,7 @@ class User(models.Model):
     last_name = models.TextField(blank=True, null=True)
     username = models.TextField(blank=True, null=True)
     guid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    datetime_start = models.DateTimeField(auto_now=True)
+    datetime_start = models.DateTimeField()
 
 
 class UserFood(models.Model):
@@ -74,20 +74,23 @@ class ResultDayDci(models.Model):
 
     def save(self, *args, **kwargs):
         super(ResultDayDci, self).save(*args, **kwargs)
-        time_zon = self.user.datetime_start.astimezone().tzinfo
-        cur_date = datetime.now(time_zon).date()
+        stage = UserStageGuide.objects.get(user=self.user).stage
+        if stage == 5:
+            time_zon = self.user.datetime_start.astimezone().tzinfo
+            cur_date = datetime.now(time_zon).date()
 
-        result_day_dci = self.user.result_day_dci.filter(
-            ~models.Q(cur_weight=None))
+            result_day_dci = self.user.result_day_dci.filter(
+                ~models.Q(cur_weight=None))
 
-        if len(result_day_dci) == 0:
-            dif_date = (cur_date - self.user.program.last().date_start).days
-        else:
-            dif_date = (cur_date - result_day_dci.last().date).days
-        dif_date = dif_date % 7 if dif_date != 0 else 1
-        remind = self.user.remind.last()
-        remind.day_without_indication_weight = dif_date
-        remind.save()
+            if len(result_day_dci) == 0:
+                dif_date = (
+                    cur_date - self.user.program.last().date_start).days
+            else:
+                dif_date = (cur_date - result_day_dci.last().date).days
+            dif_date = dif_date % 7 if dif_date != 0 else 1
+            remind = self.user.remind.last()
+            remind.day_without_indication_weight = dif_date
+            remind.save()
 
 
 class UserProgram(models.Model):

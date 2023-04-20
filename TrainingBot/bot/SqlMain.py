@@ -1,8 +1,8 @@
 ﻿import telebot
 import bot.Button as Button
 import bot.InlineKeyboard as InlineKeyboard
-from bot.config import TOKEN
 from model.models import *
+from TrainingBot.settings import TOKEN
 
 
 bot = telebot.TeleBot(TOKEN)

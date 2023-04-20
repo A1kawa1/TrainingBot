@@ -9,7 +9,7 @@ from bot.SqlMain import *
 from bot.InlineKeyboard import *
 from bot.Button import *
 from bot.SendMessage import template_send_message, check_remind
-from bot.config import ACTIVITY, TYPE, TOKEN
+from bot.config import ACTIVITY, TYPE
 
 
 class Command(BaseCommand):
@@ -574,22 +574,16 @@ class Command(BaseCommand):
                         cur_time.year, cur_time.month, cur_time.day)
                     user = User.objects.get(id=id)
                     user_program = user.program.last()
-                    # if len(user.result_day_dci.filter(date=cur_date)) == 0 and user_program.date_start != cur_date:
-                    #     user_program.cur_day += 1
-                    #     user_program.save()
+                    user_target = user.target.last()
+
                     if len(user.result_day_dci.filter(date=cur_date)) == 0 and user_program.date_start != cur_date:
                         user_program.cur_day = (
                             cur_date - user_program.date_start).days + 1
                         user_program.save()
-                    # if not ResultDayDci.objects.filter(
-                    #     user=user,
-                    #     date=cur_date
-                    # ).exists():
-                    #     result_dci = ResultDayDci(
-                    #         user=user,
-                    #         date=cur_date
-                    #     )
-                    #     result_dci.save()
+
+                    update_normal_dci(user, user_program,
+                                      user_target, cur_date)
+
                     day_result, create = ResultDayDci.objects.get_or_create(
                         user=user,
                         date=cur_date
@@ -1204,6 +1198,11 @@ class Command(BaseCommand):
                             if create == True:
                                 target_user = user.target.last()
                                 program_user = target_user.program
+
+                                program_user.cur_dci = get_normal_dci(
+                                    user.id, program_user.phase1, program_user.cur_day)
+                                program_user.save()
+
                                 day_result.deficit = program_user.cur_dci
                                 if program_user.date_start != cur_date:
                                     program_user.cur_day = (
@@ -1237,7 +1236,7 @@ class Command(BaseCommand):
                         if remind.day_without_indication_weight == 0:
                             remind.day_without_indication_weight = 1
                         remind.save()
-                sleep(5)
+                sleep(60*60)
                 # users_id = list(UserStageGuide.objects.filter(
                 #     stage__in=[4, 5]).values_list('user', flat=True))
                 # for id in users_id:

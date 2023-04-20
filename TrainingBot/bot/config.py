@@ -1,6 +1,4 @@
-﻿TOKEN = '5733970707:AAFAemFL2kflSLxNM1syz4SnZe3MeM2LzM0'
-
-ACTIVITY = {
+﻿ACTIVITY = {
     'отсутствует или минимальная': 1.2,
     'буду заниматься в зале': 1.4,
     'None': 1.2
