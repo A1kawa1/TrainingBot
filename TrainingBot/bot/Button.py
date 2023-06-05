@@ -1034,10 +1034,12 @@ def send_yesterday_remind(id, message):
         )
 
         if len(day_food) == 1:
-            result_day_dci_all = list(user.result_day_dci.all())
-            if len(result_day_dci_all) >= 2:
-                deficit = result_day_dci_all[-2].deficit
-                result = result_day_dci_all[-2].calories
+            result_day_dci = user.result_day_dci
+            if result_day_dci.all().count() >= 2:
+                res = result_day_dci.get(
+                    date=cur_time.date()-timedelta(days=1))
+                deficit = res.deficit
+                result = res.calories
                 if result == 0:
                     template_send_message(
                         bot, id, 'yesterday_non_calories')

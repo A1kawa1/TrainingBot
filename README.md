@@ -8,11 +8,11 @@
 Clone the repository and go to it on the command line:
 
 ```
-git clone https://github.com/yandex-praktikum/kittygram_backend.git
+git clone https://github.com/A1kawa1/TrainingBot.git
 ```
 
 ```
-cd kittygram_backend
+cd TrainingBot
 ```
 
 Create and activate a virtual environment:

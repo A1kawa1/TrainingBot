@@ -266,76 +266,57 @@ class Command(BaseCommand):
                 return False
 
             if get_stage(id) in (4, 5):
-                if any([x in message.text for x in ['-', '!', '^', ',', ';', ':', '#', '%', '?', r'\n']]):
+                if message.text in ('Мои данные', 'Моя программа', 'Меню',
+                                    'Мастер обучения', 'Статистика за день',
+                                    'Статистика за неделю', 'Сброс', 'Мониторинг'):
+                    return False
+                if any([x in message.text for x in ['!', '^', ',', ';', ':', '#', '%', '?', r'\n']]):
                     bot.send_message(
                         chat_id=id,
                         text='Вводите согласно формату, повторите попытку',
                     )
                     return False
-                tmp = message.text.split('+')
-                if len(tmp) == 1:
-                    id_space = message.text.find(' ')
-
-                    try:
-                        if id_space == -1:
-                            calories = int(message.text)
-                        else:
-                            calories = message.text[:id_space]
-
-                        if check_int(calories):
-                            return True
-                    except:
-                        if message.text not in (
-                            'Мастер обучения', 'Меню',
-                            'Статистика за день', 'Мониторинг',
-                                'Мои данные', 'Моя цель', 'Сброс'):
-                            bot.send_message(
-                                chat_id=id,
-                                text='Вводите согласно формату, повторите попытку',
-                            )
-                        return False
-                if check_int(tmp[0]):
-                    return True
+                return True
             return False
 
         @bot.message_handler(func=stage_4_5_calories)
         def calories(message):
-            tmp = message.text.split('+')
+            tmp = message.text.split()
+            id_first = -1
+            for i in range(len(tmp)):
+                if tmp[i][0].isalpha():
+                    id_first = i
+                    break
+            name = None
+
             if len(tmp) == 1:
-                id_space = message.text.find(' ')
-                if id_space == -1:
-                    calories = int(message.text)
-                    name = None
-                else:
-                    calories = message.text[:id_space]
-                    name = message.text[id_space+1:].strip()
-                if not Button.check_int(calories):
+                try:
+                    calories = eval(message.text)
+                except:
                     bot.send_message(
-                        chat_id=id,
+                        chat_id=message.from_user.id,
                         text='Вводите согласно формату, повторите попытку',
                     )
                     return
-                data = (int(calories), message.from_user.id)
+                data = (calories, message.from_user.id)
             else:
-                name = None
-                tmp = list(map(lambda x: x.strip(), tmp))
-                id_space = tmp[-1].find(' ')
-
-                if id_space == -1:
-                    calories = tmp[:-1] + [tmp[-1]]
-                    name = None
+                if id_first != -1:
+                    calories_data = ' '.join(tmp[:id_first])
+                    name = ' '.join(tmp[id_first:])
                 else:
-                    calories = tmp[:-1] + [tmp[-1][:id_space]]
-                    name = tmp[-1][id_space+1:].strip()
+                    calories_data = message.text
+                print(calories_data)
+                print(name)
 
                 try:
-                    data = (sum(list(map(int, calories))),
+                    data = (eval(calories_data),
                             message.from_user.id)
-                except ValueError:
+                except:
                     bot.send_message(
-                        chat_id=data[1],
+                        chat_id=message.from_user.id,
                         text=f'Простите, но мы не смогли распознать ваши данные'
                     )
+                    return
 
             food_user = UserDayFood(
                 user=User.objects.get(id=data[1]),
@@ -454,7 +435,7 @@ class Command(BaseCommand):
 
                     markup.add(telebot.types.InlineKeyboardButton(
                         text='Пройти курс',
-                        url=f'http://127.0.0.1:8000/{id}/'
+                        url=f'https://changeyourbody.ru/kak-schitat-kalorii'
                     ))
                     markup.add(telebot.types.InlineKeyboardButton(
                         text='Я все вспомнил',
@@ -955,7 +936,7 @@ class Command(BaseCommand):
                     keyboard.add('Завершить обучение')
                     markup.add(telebot.types.InlineKeyboardButton(
                         text='Пройти курс',
-                        url=f'http://127.0.0.1:8000/{id}/'
+                        url=f'https://changeyourbody.ru/kak-schitat-kalorii'
                     ))
                     markup.add(telebot.types.InlineKeyboardButton(
                         text='Завершить обучение',

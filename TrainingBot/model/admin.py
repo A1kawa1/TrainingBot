@@ -57,6 +57,12 @@ class RemindUserAdmin(admin.ModelAdmin):
     empty_value_display = '-пусто-'
 
 
+class UserStageGuideAdmin(admin.ModelAdmin):
+    list_display = ('user', 'stage')
+    search_fields = ('user',)
+    empty_value_display = '-пусто-'
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(InfoUser, InfoUserAdmin)
 admin.site.register(TargetUser, TargetUserAdmin)
@@ -65,4 +71,4 @@ admin.site.register(ResultDayDci, ResultDayDciAdmin)
 admin.site.register(UserProgram, UserProgramAdmin)
 admin.site.register(Message, MessageAdmin)
 admin.site.register(RemindUser, RemindUserAdmin)
-admin.site.register(UserStageGuide)
+admin.site.register(UserStageGuide, UserStageGuideAdmin)

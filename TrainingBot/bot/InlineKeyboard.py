@@ -161,7 +161,7 @@ def cur_day_food(id, time):
         time__year=cur_time.year,
         time__month=cur_time.month,
         time__day=cur_time.day
-    ).values_list('id', 'name', 'calories', 'time')
+    ).order_by('-time').values_list('id', 'name', 'calories', 'time')
 
     for id, name, calories, time in list(foods):
         if name is None:
