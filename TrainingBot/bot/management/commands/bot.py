@@ -78,187 +78,10 @@ class Command(BaseCommand):
             remind.save()
 
             template_send_message(bot, id, 'start')
-            # bot.send_message(
-            #     chat_id=id,
-            #     text=(
-            #         f'{first_name}, вы новенький. Давайте же я расскажу, что умею.\n'
-            #         f'Я помогу следить вам за вашими каллориями. Подберу для вас оптимальную программу питания и тренировок.'
-            #     ),
-            #     reply_markup=telebot.types.ReplyKeyboardRemove()
-            # )
             template_send_message(bot, id, 'start_last')
-            # bot.send_message(
-            #     chat_id=id,
-            #     text='Давайте начнем работу.',
-            #     reply_markup=markup
-            # )
+
             user_stage_guide.stage = 0
             user_stage_guide.save()
-
-            # try:
-            #     cur.execute(
-            #         '''SELECT username, first_name FROM user WHERE id = ?''',
-            #         (id,)
-            #     )
-            #     inf = cur.fetchall()
-            #     if len(inf) != 0:
-            #         if (id,) in get_user('id') and inf[0][0] is None:
-            #             print(None)
-            #             cur.execute(
-            #                 '''DELETE FROM user WHERE id = ?''',
-            #                 (id,)
-            #             )
-            #             cur.execute(
-            #                 '''DELETE FROM info_user WHERE user = ?''',
-            #                 (id,)
-            #             )
-            #             cur.execute(
-            #                 '''DELETE FROM target_user WHERE user = ?''',
-            #                 (id,)
-            #             )
-            #             con.commit()
-            #     cur.execute(
-            #         '''INSERT INTO user VALUES(?, ?, ?, ?);''',
-            #         data_user
-            #     )
-            #     cur.execute(
-            #         '''INSERT INTO info_user VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
-            #         data_info
-            #     )
-            #     cur.execute(
-            #         '''INSERT INTO target_user VALUES(?, ?, ?, ?, ?, ?, ?, ?);''',
-            #         data_target
-            #     )
-            #     con.commit()
-            #     bot.delete_message(
-            #         chat_id=id,
-            #         message_id=message.message_id,
-            #     )
-            #     markup.add(telebot.types.InlineKeyboardButton(
-            #         text='Начать работу',
-            #         callback_data='login'
-            #     ))
-            #     bot.send_message(
-            #         chat_id=id,
-            #         text=f'{first_name}, вы успешно зарегистрировались',
-            #         reply_markup=markup
-            #     )
-
-            # except Exception as e:
-            #     print(e)
-            #     cur.execute(
-            #         '''SELECT username, first_name FROM user WHERE id = ?''',
-            #         (id,)
-            #     )
-            #     inf = cur.fetchall()
-            #     username = inf[0][0]
-            #     name = inf[0][1]
-            #     markup.add(telebot.types.InlineKeyboardButton(
-            #         text='Начать работу',
-            #         callback_data='login'
-            #     ))
-            #     bot.send_message(
-            #         chat_id=id,
-            #         text=f'{name}, вы уже зарегистрированны',
-            #         reply_markup=markup
-            #     )
-
-        # def check_on_guide(message):
-        #     id = message.from_user.id
-        #     if (id,) not in get_user('id'):
-        #         return False
-        #     stage = get_stage(id)
-        #     if stage == 2 or message.text == 'Мастер обучения':
-        #         return True
-        #     return False
-
-        # @bot.message_handler(func=check_on_guide)
-        # def guide(message):
-        #     # это будет работать, если Мастер обучения всегда возвращает в начало
-        #     id = message.from_user.id
-        #     if message.text == 'Мастер обучения':
-        #         bot.clear_step_handler_by_chat_id(chat_id=id)
-        #         print('guide_again_start')
-        #         cur.execute(
-        #             '''
-        #                 UPDATE user_stage_guide
-        #                 SET question = 1
-        #                 WHERE user = ?
-        #             ''',
-        #             (id,)
-        #         )
-        #         con.commit()
-
-        #         markup = telebot.types.InlineKeyboardMarkup()
-        #         data = get_question(id)
-        #         markup.add(telebot.types.InlineKeyboardButton(
-        #             text='Я все вспомнил',
-        #             callback_data='skip_guide'
-        #         ))
-        #         try:
-        #             bot.send_message(
-        #                 chat_id=id,
-        #                 text=data[0]
-        #             )
-        #         except:
-        #             pass
-        #         bot.send_message(
-        #             chat_id=id,
-        #             text=data[1],
-        #             reply_markup=markup
-        #         )
-        #     else:
-        #         question = get_question(id)
-        #         print(question)
-        #         check_answer(message, question)
-
-            # это отлично работает
-            # id = message.from_user.id
-            # number_question = get_number_question(id)
-
-            # cur.execute('''SELECT COUNT(*) FROM guide''')
-            # count = cur.fetchone()[0]
-            # if get_stage(id) == 2:
-            #     question = get_question(id)
-            #     print(question)
-            #     check_answer(message, question)
-            # else:
-            #     if number_question == count + 1:
-            #         bot.clear_step_handler_by_chat_id(chat_id=id)
-            #         print('guide_again_start')
-            #         cur.execute(
-            #             '''
-            #                 UPDATE user_stage_guide
-            #                 SET question = 1
-            #                 WHERE user = ?
-            #             ''',
-            #             (id,)
-            #         )
-            #         con.commit()
-
-            #         markup = telebot.types.InlineKeyboardMarkup()
-            #         data = get_question(id)
-            #         markup.add(telebot.types.InlineKeyboardButton(
-            #             text='Я все вспомнил',
-            #             callback_data='skip_guide'
-            #         ))
-            #         try:
-            #             bot.send_message(
-            #                 chat_id=id,
-            #                 text=data[0]
-            #             )
-            #         except:
-            #             pass
-            #         bot.send_message(
-            #             chat_id=id,
-            #             text=data[1],
-            #             reply_markup=markup
-            #         )
-            #     else:
-            #         print('guide_again')
-            #         question = get_question(id)
-            #         print(question)
-            #         check_answer(message, question)
 
         def stage_4_5_calories(message):
             id = message.from_user.id
@@ -500,9 +323,15 @@ class Command(BaseCommand):
                         reply_markup=create_inline_week_eating(id, message)
                     )
                 elif message.text == 'Мониторинг':
-                    count_day = ResultDayDci.objects.filter(user=id).count()
-                    data = ResultDayDci.objects.filter(
-                        user=id).order_by('date')
+                    user_days_dci = ResultDayDci.objects.filter(user=id)
+                    count_day = user_days_dci.count()
+                    if count_day == 0:
+                        regularity = 0
+                    else:
+                        regularity = user_days_dci.filter(~Q(calories=0)).count()
+                        regularity = int(regularity / count_day * 100)
+
+                    data = user_days_dci.order_by('date')
                     if count_day == 0:
                         avg_dci = 0
                     elif count_day == 1:
@@ -511,8 +340,7 @@ class Command(BaseCommand):
                         avg_dci = data[1].calories
                     else:
                         avg_dci = int(
-                            (ResultDayDci.objects.filter(user=id)
-                             .order_by('date')[1:len(data)-1]
+                            (data[1:len(data)-1]
                              .aggregate(Avg('calories'))
                              .get('calories__avg'))
                         )
@@ -523,7 +351,7 @@ class Command(BaseCommand):
                         callback_data='asdasdf'
                     ))
                     markup.add(telebot.types.InlineKeyboardButton(
-                        text=f'Регулярность ввода данных: {int(count_day / 4 * 100) if count_day <= 4 else 100}%',
+                        text=f'Регулярность ввода данных: {regularity}%',
                         callback_data='asdasdf'
                     ))
                     markup.add(telebot.types.InlineKeyboardButton(
@@ -591,90 +419,6 @@ class Command(BaseCommand):
         @bot.callback_query_handler(func=lambda call: True)
         def query_handler(call):
             markup = telebot.types.InlineKeyboardMarkup()
-            # elif call.data == 'not_get_info_tg':
-            #     try:
-            #         id = call.message.chat.id
-            #         cur.execute(
-            #             '''SELECT username, first_name, last_name FROM user WHERE id = ?''',
-            #             (id,)
-            #         )
-            #         inf = cur.fetchall()
-            #         first_name, last_name = None, None
-            #         if len(inf) != 0:
-            #             if (id,) in get_user('id') and inf[0][0] is None:
-            #                 print(None)
-            #                 first_name = inf[0][1]
-            #                 last_name = inf[0][2]
-            #                 print(first_name, last_name)
-            #                 cur.execute(
-            #                     '''DELETE FROM user WHERE id = ?''',
-            #                     (id,)
-            #                 )
-            #                 cur.execute(
-            #                     '''DELETE FROM info_user WHERE user = ?''',
-            #                     (id,)
-            #                 )
-            #                 cur.execute(
-            #                     '''DELETE FROM target_user WHERE user = ?''',
-            #                     (id,)
-            #                 )
-            #                 con.commit()
-            #         data_user = (id, first_name, last_name, None)
-            #         data_info = (None, 0, 0, 0, 'None', 0, 0, 'отсутствует или минимальная', 0, id)
-            #         data_target = (None, None, 0, 0, id)
-            #         cur.execute(
-            #             '''INSERT INTO user VALUES(?, ?, ?, ?);''',
-            #             data_user
-            #         )
-            #         cur.execute(
-            #             '''INSERT INTO info_user VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
-            #             data_info
-            #         )
-            #         cur.execute(
-            #             '''INSERT INTO target_user VALUES(?, ?, ?, ?, ?);''',
-            #             data_target
-            #         )
-            #         con.commit()
-
-            #         cur.execute(
-            #             '''SELECT * FROM user WHERE id = ?''',
-            #             (id,)
-            #         )
-            #         user = cur.fetchall()[0]
-            #         markup = create_InlineKeyboard(user)
-            #         bot.delete_message(
-            #             chat_id=call.message.chat.id,
-            #             message_id=call.message.message_id,
-            #         )
-            #         bot.send_message(
-            #             chat_id=call.message.chat.id,
-            #             text='Давайте начнем регистрацию',
-            #             reply_markup=telebot.types.ReplyKeyboardRemove()
-            #         )
-            #         bot.send_message(
-            #             chat_id=call.message.chat.id,
-            #             text='Вводите необходимые данные',
-            #             reply_markup=markup
-            #         )
-            #     except Exception as e:
-            #         print(e)
-            #         cur.execute(
-            #             '''SELECT username, first_name FROM user WHERE id = ?''',
-            #             (id,)
-            #         )
-            #         inf = cur.fetchall()
-            #         print(inf)
-            #         username = inf[0][0]
-            #         name = inf[0][1]
-            #         markup.add(telebot.types.InlineKeyboardButton(
-            #             text='Войти',
-            #             callback_data='login'
-            #         ))
-            #         bot.send_message(
-            #             chat_id=call.message.chat.id,
-            #             text=f'{name}, вы уже зарегистрированны\nваш ник - {username}',
-            #             reply_markup=markup
-            #         )
             try:
                 id = call.message.chat.id
                 if call.data == 'close':
@@ -1092,52 +836,6 @@ class Command(BaseCommand):
                     text='Неизвестная ошибка'
                 )
 
-        # def test():
-        #     while True:
-        #         print(User.objects.all())
-        #         sleep(3)
-        # def schedule_checker():
-        #     while True:
-        #         schedule.run_pending()
-        #         sleep(5)
-
-        # def refresh_info_user():
-        #     cur.execute('''
-        #         UPDATE info_user SET period = period - 1 WHERE period > 0;
-        #     ''')
-        #     con.commit()
-
-        # def update_period():
-        #     while True:
-        #         try:
-        #             cur.execute(
-        #                 '''SELECT age, height, gender, ideal_weight, user
-        #                 FROM info_user
-        #                 '''
-        #             )
-        #             users = cur.fetchall()
-        #             if len(users) != 0:
-        #                 for user in users:
-        #                     if (user[0] != 0 and user[1] != 0
-        #                         and user[2] != 'None' and user[3] != 0):
-        #                         cur.execute(
-        #                             '''SELECT DCI, cur_DCI, programm_ready FROM target_user WHERE user = ?''',
-        #                             (user[4],)
-        #                         )
-        #                         inf = cur.fetchall()[0]
-
-        #         except:
-        #             pass
-
-        # schedule.every().day.at('00:00').do(refresh_info_user)
-        # Thread(target=schedule_checker).start()
-        # Thread(target=update_period).start()
-        # Thread(target=test).start()
-
-            # print(time_zon := datetime.fromtimestamp(
-            #     message.date).astimezone().tzinfo)
-            # print(datetime.now(time_zon))
-            # print(datetime.now(timezone(timedelta(hours=3))))
 
         def bg_thread():
             while True:
@@ -1218,60 +916,6 @@ class Command(BaseCommand):
                             remind.day_without_indication_weight = 1
                         remind.save()
                 sleep(60*60)
-                # users_id = list(UserStageGuide.objects.filter(
-                #     stage__in=[4, 5]).values_list('user', flat=True))
-                # for id in users_id:
-                #     user = User.objects.get(id=id)
-                #     remind = user.remind.last()
-                #     remind_first = remind.remind_first
-                #     remind_second = remind.remind_second
-                #     print(id, remind_first, remind_second)
-
-                #     time_zon = user.datetime_start.astimezone().tzinfo
-                #     cur_time = datetime.now(time_zon)
-                #     eating = user.day_food.filter(
-                #         time__year=cur_time.year,
-                #         time__month=cur_time.month,
-                #         time__day=cur_time.day
-                #     ).aggregate(Sum('calories')).get('calories__sum')
-                #     norm = UserProgram.objects.filter(user=user).last().cur_dci
-
-                #     res = send_remind(cur_time, eating, norm,
-                #                       remind_first, remind_second)
-                #     if not res is None:
-                #         if res == 'send_second':
-                #             template_send_message(
-                #                 bot, user.id, 'remind_second')
-                #             print(f'{user.id} не указал половину')
-                #             remind.remind_second = True
-                #             remind.remind_first = True
-                #             remind.save()
-                #         elif res == 'send_first':
-                #             template_send_message(
-                #                 bot, user.id, 'remind_first')
-                #             print(f'{user.id} не указал')
-                #             remind.remind_first = True
-                #             remind.save()
-                #         elif res == 'set_flag':
-                #             remind.remind_second = False
-                #             remind.remind_first = False
-                #             remind.save()
-                # if cur_time.time() > time(hour=19, minute=0, second=0) and (eating in (0, None) or eating < norm / 2) and remind_second == False:
-                #     template_send_message(bot, user.id, 'remind_second')
-                #     print(f'{user.id} не указал половину')
-                #     remind.remind_second = True
-                #     remind.remind_first = True
-                #     remind.save()
-                # elif cur_time.time() > time(hour=13, minute=0, second=0) and eating in (0, None) and remind_first == False:
-                #     template_send_message(bot, user.id, 'remind_first')
-                #     print(f'{user.id} не указал')
-                #     remind.remind_first = True
-                #     remind.save()
-                # elif cur_time.time() < time(hour=1, minute=0, second=0) and (remind_second == True or remind_first == True):
-                #     remind.remind_second = False
-                #     remind.remind_first = False
-                #     remind.save()
-                # sleep(60*60)
 
         th = threading.Thread(target=bg_thread)
         th.daemon = True
