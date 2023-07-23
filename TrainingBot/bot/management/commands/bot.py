@@ -331,16 +331,16 @@ class Command(BaseCommand):
                         regularity = user_days_dci.filter(~Q(calories=0)).count()
                         regularity = int(regularity / count_day * 100)
 
-                    data = user_days_dci.order_by('date')
-                    if count_day == 0:
+                    data = user_days_dci.filter(~Q(calories=0)).order_by('date')
+                    if len(data) == 0:
                         avg_dci = 0
-                    elif count_day == 1:
+                    elif len(data) in (1, 2):
                         avg_dci = data[0].calories
-                    elif count_day in (2, 3):
+                    elif len(data) == 3:
                         avg_dci = data[1].calories
                     else:
                         avg_dci = int(
-                            (data[1:len(data)-1]
+                            (user_days_dci.filter(~Q(calories=0)).order_by('date')[1:len(data)-1]
                              .aggregate(Avg('calories'))
                              .get('calories__avg'))
                         )
