@@ -112,7 +112,7 @@ def create_InlineKeyboard_target(message, flag=False):
 
     elif target.type in TYPE[1:]:
         field = {
-            'Цель': ['my_target', target.type, ''],
+            'Цель': ['asdvsdfg', target.type, ''],
             'Текущий вес': ['change_weight', target.cur_weight, 'кг'],
             'Вес, который хотим': ['change_target', target.target_weight, 'кг'],
             'Активность': ['change_activity', target.activity, ''],
@@ -132,17 +132,25 @@ def create_InlineKeyboard_target(message, flag=False):
                 ))
 
         markup.add(telebot.types.InlineKeyboardButton(
+            text='Назад',
+            callback_data='my_target'
+        ))
+        markup.add(telebot.types.InlineKeyboardButton(
             text='Закрыть',
             callback_data='close'
         ))
     else:
         markup.add(telebot.types.InlineKeyboardButton(
             text=target.type,
-            callback_data='my_target'
+            callback_data='asdvsdfg'
         ))
         markup.add(telebot.types.InlineKeyboardButton(
             text=f'пока не придумал',
             callback_data='hold_weight'
+        ))
+        markup.add(telebot.types.InlineKeyboardButton(
+            text='Назад',
+            callback_data='my_target'
         ))
         markup.add(telebot.types.InlineKeyboardButton(
             text='Закрыть',
@@ -188,6 +196,7 @@ def detail_day_food(food_id):
     #         text='Изменить',
     #         callback_data=f'change_day_dci_{food_id}'
     #     ))
+
     markup.add(telebot.types.InlineKeyboardButton(
         text='Изменить',
         callback_data=f'change_day_dci_{food_id}'
@@ -195,6 +204,10 @@ def detail_day_food(food_id):
     markup.add(telebot.types.InlineKeyboardButton(
         text='Удалить',
         callback_data=f'delete_day_dci_{food_id}'
+    ))
+    markup.add(telebot.types.InlineKeyboardButton(
+        text='Назад',
+        callback_data='back_stat_day_main'
     ))
     markup.add(telebot.types.InlineKeyboardButton(
         text='Закрыть',

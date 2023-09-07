@@ -3,77 +3,10 @@ import bot.Button as Button
 import bot.InlineKeyboard as InlineKeyboard
 from model.models import *
 from TrainingBot.settings import TOKEN
+from bot.InlineKeyboard import create_InlineKeyboard_food
 
 
 bot = telebot.TeleBot(TOKEN)
-
-# def create_table():
-#     cur.executescript('''
-#         CREATE TABLE IF NOT EXISTS user
-#         (
-#             id INTEGER UNIQUE PRIMARY KEY,
-#             first_name TEXT,
-#             last_name TEXT,
-#             username TEXT
-#         );
-
-#         CREATE TABLE IF NOT EXISTS food(
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             name TEXT,
-#             calories INTEGER
-#         );
-
-#         CREATE TABLE IF NOT EXISTS user_food(
-#             user_id INTEGER NOT NULL,
-#             food_id INTEGER NOT NULL,
-#             PRIMARY KEY (user_id, food_id),
-#             FOREIGN KEY(user_id) REFERENCES user(id),
-#             FOREIGN KEY(food_id) REFERENCES food(id)
-#         );
-
-#         CREATE TABLE IF NOT EXISTS info_user(
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             age INTEGER DEFAULT 0,
-#             height INTEGER DEFAULT 0,
-#             gender TEXT DEFAULT "None",
-#             ideal_weight FLOAT DEFAULT 0,
-#             user INTEGER NOT NULL UNIQUE,
-#             FOREIGN KEY(user) REFERENCES user(id)
-#         );
-
-#         CREATE TABLE IF NOT EXISTS target_user(
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             type TEXT DEFAULT "None",
-#             activity TEXT DEFAULT "None",
-#             period INTEGER DEFAULT 0,
-#             cur_week INTEGER DEFAULT 0,
-#             cur_week_noraml_DCI INTEGER DEFAULT 0,
-#             DCI INTEGER DEFAULT 0,
-#             cur_DCI INTEGER DEFAULT 0,
-#             cur_day_DCI INTEGER DEFAULT 0,
-#             cur_weight FLOAT DEFAULT 0,
-#             target_weight FLOAT DEFAULT 0,
-#             user INTEGER NOT NULL,
-#             programm_ready BOOLEAN DEFAULT(FALSE),
-#             FOREIGN KEY(user) REFERENCES user(id)
-#         );
-
-#         CREATE TABLE IF NOT EXISTS guide(
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             advice TEXT DEFAULT "None",
-#             question TEXT DEFAULT "None",
-#             answer1 INTEGER DEFAULT 0,
-#             answer2 INTEGER DEFAULT 0
-#         );
-
-#         CREATE TABLE IF NOT EXISTS user_stage_guide(
-#             user INTEGER NOT NULL,
-#             stage INTEGER DEFAULT 0,
-#             question INTEGER DEFAULT 1,
-#             FOREIGN KEY(user) REFERENCES user(id)
-#         );
-#     ''')
-#     con.commit()
 
 
 def get_user(param):
@@ -83,34 +16,6 @@ def get_user(param):
     elif param == 'username':
         username = User.objects.values_list('username', flat=True)
         return list(username)
-
-
-# def get_first_last_user_name(message, id, field):
-#     if message.from_user.is_bot:
-#         id = message.chat.id
-#     else:
-#         id = message.from_user.id
-
-#     data = (message.text, id)
-#     request = f'''UPDATE user SET {field} = ? WHERE id = ?'''
-#     cur.execute(request, data)
-#     con.commit()
-#     cur.execute(
-#         '''SELECT * FROM user WHERE id = ?''',
-#         (message.from_user.id,)
-#     )
-#     user = cur.fetchone()
-#     bot.delete_message(
-#         chat_id=id,
-#         message_id=message.message_id
-#     )
-
-#     bot.edit_message_text(
-#         chat_id=id,
-#         message_id=message.message_id,
-#         text='Вводите необходимые данные',
-#         reply_markup=InlineKeyboard.create_InlineKeyboard(user)
-#     )
 
 
 def get_activity(call):
@@ -124,10 +29,6 @@ def get_activity(call):
     target_user.save()
 
     Button.change_DCI_ideal_weight(call.message)
-    bot.delete_message(
-        chat_id=id,
-        message_id=call.message.message_id
-    )
 
     markup = InlineKeyboard.create_InlineKeyboard_target(call.message, False)
 
@@ -136,21 +37,24 @@ def get_activity(call):
         and ('None' not in [target_user.type, target_user.activity])
             and get_stage(id) == 1):
         if target_user.cur_weight <= target_user.target_weight:
-            bot.send_message(
+            bot.edit_message_text(
                 chat_id=id,
+                message_id=call.message.message_id,
                 text='Пожалуйста укажите коректный текущий вес и цель',
                 reply_markup=markup
             )
             return
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=id,
+            message_id=call.message.message_id,
             text='Укажите следующие данные',
             reply_markup=markup
         )
         Button.update_stage_2(id)
     else:
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=id,
+            message_id=call.message.message_id,
             text='Укажите следующие данные',
             reply_markup=markup
         )
@@ -168,13 +72,9 @@ def get_gender(call):
 
     Button.change_DCI_ideal_weight(call.message)
 
-    bot.delete_message(
+    bot.edit_message_text(
         chat_id=id,
-        message_id=call.message.message_id
-    )
-
-    bot.send_message(
-        chat_id=id,
+        message_id=call.message.message_id,
         text='Укажите следующие данные',
         reply_markup=InlineKeyboard.create_InlineKeyboard_user_info(
             call.message)
@@ -203,6 +103,7 @@ def get_food(message):
         text='Закрыть',
         callback_data='close'
     ))
+    count_success = 0
     for el in foods:
         id_space = el.find(' ')
         if id_space == -1:
@@ -214,40 +115,29 @@ def get_food(message):
 
         if not Button.check_int(calories):
             continue
+
+        count_success += 1
         food, _ = Food.objects.get_or_create(name=name, calories=calories)
         user = User.objects.get(id=id)
         UserFood.objects.get_or_create(
             food=food,
             user=user,
         )
-        # try:
-        #     name, calories = el.split(' - ')
-        #     if not Button.check_int(calories):
-        #         bot.send_message(
-        #             chat_id=message.chat.id,
-        #             text='Вводите согласно формату, повторите попытку',
-        #             reply_markup=markup
-        #         )
-        #         return
-        # except:
-        #     bot.send_message(
-        #         chat_id=message.chat.id,
-        #         text='Вводите согласно формату, повторите попытку',
-        #         reply_markup=markup
-        #     )
-        #     return
 
-        # Food.objects.get_or_create(name=name, calories=calories)
-        # food = Food.objects.get(name=name, calories=calories)
-        # user = User.objects.get(id=id)
-        # UserFood.objects.get_or_create(
-        #     food=food,
-        #     user=user
-        # )
-
+    if not count_success:
+        bot.send_message(
+            chat_id=id,
+            text='Мы не смогли распознать ни одного блюда'
+        )
+    else:
+        bot.send_message(
+            chat_id=id,
+            text='Блюдо добавлено'
+        )
     bot.send_message(
         chat_id=id,
-        text='Блюдо добавлено'
+        text='Выберите что вы поели',
+        reply_markup=create_InlineKeyboard_food(id)
     )
 
 
@@ -271,201 +161,7 @@ def get_info(message):
     info_user = InfoUser.objects.get(user=id)
     return info_user
 
-# def get_programm(message):
-#     id = message.chat.id
-#     cur.execute(
-#         '''SELECT period, cur_week, cur_week_noraml_DCI FROM target_user WHERE user = ?''',
-#         (id,)
-#     )
-#     return cur.fetchone()
-
-
-# def update_period(id):
-#     keyboard = telebot.types.ReplyKeyboardMarkup(True)
-#     keyboard.add('Мои данные', 'Моя цель', 'Моя программа', 'Добавить блюдо', 'Что есть в моем рационе', 'Я поел')
-#     cur.execute(
-#         '''SELECT age, height, gender, ideal_weight
-#            FROM info_user
-#            WHERE user = ?
-#         ''',
-#         (id,)
-#     )
-#     inf = cur.fetchone()
-#     if all(inf):
-#         cur.execute(
-#             '''SELECT DCI, cur_DCI, cur_weight, target_weight, programm_ready
-#                FROM target_user
-#                WHERE user = ?
-#             ''',
-#             (id,)
-#         )
-#         inf = cur.fetchone()
-#         if all(inf[:4]):
-#             period = int(abs(inf[1] - inf[0]) / 100)
-#             cur.execute(
-#                 '''UPDATE target_user
-#                    SET period = ?
-#                    WHERE user = ?
-#                 ''',
-#                 (period, id)
-#             )
-#             if inf[4] == False:
-#                 cur.execute(
-#                     '''UPDATE target_user
-#                        SET programm_ready = TRUE
-#                        WHERE user = ?
-#                     ''',
-#                     (id,)
-#                 )
-#                 bot.send_message(
-#                     chat_id=id,
-#                     text='Ваша программа готова',
-#                     reply_markup=keyboard
-#                 )
-#             con.commit()
-
 
 def get_stage(id):
     user_stage_guide = UserStageGuide.objects.get(user=id)
     return user_stage_guide.stage
-
-
-# def get_number_question(id):
-#     cur.execute(
-#         '''SELECT question FROM user_stage_guide WHERE user = ?''',
-#         (id,)
-#     )
-#     inf = cur.fetchone()
-#     return inf[0]
-
-
-# def get_question(id):
-#     cur.execute(
-#         '''
-#             SELECT guide.advice, guide.question, guide.answer1, guide.answer2
-#             FROM guide, user_stage_guide
-#             WHERE user_stage_guide.user = ?
-#             AND user_stage_guide.question = guide.id
-#         ''',
-#         (id,)
-#     )
-#     return cur.fetchone()
-
-
-# def check_answer(message, questionn):
-#     question = questionn[1]
-#     answer1 = questionn[2]
-#     answer2 = questionn[3]
-#     markup = telebot.types.InlineKeyboardMarkup()
-#     id = message.from_user.id
-#     stage = get_stage(id)
-
-#     if stage == 2:
-#         markup.add(telebot.types.InlineKeyboardButton(
-#             text='Я все понял, погнали дальше',
-#             callback_data='skip_guide'
-#         ))
-#     else:
-#         markup.add(telebot.types.InlineKeyboardButton(
-#             text='Я все вспомнил',
-#             callback_data='skip_guide'
-#         ))
-
-#     if not Button.check_int(message.text):
-#         bot.send_message(
-#             chat_id=id,
-#             text=(
-#                 f'Вводите целое число, повторите попытку\n'
-#                 f'{question}'
-#             ),
-#             reply_markup=markup
-#         )
-#         return
-#     if int(message.text) < 0:
-#         bot.send_message(
-#             chat_id=id,
-#             text=(
-#                 f'Вводите положительное число, повторите попытку\n'
-#                 f'{question}'
-#             ),
-#             reply_markup=markup
-#         )
-#         return
-#     if answer1 <= int(message.text) <= answer2:
-#         print('верно')
-#         cur.execute(
-#             '''
-#                 UPDATE user_stage_guide
-#                 SET question = question + 1
-#                 WHERE user = ?
-#             ''',
-#             (id,)
-#         )
-#         con.commit()
-
-#         cur.execute('''SELECT COUNT(*) FROM guide''')
-#         count = cur.fetchone()[0]
-#         number_question = get_number_question(id)
-
-#         if number_question == count + 1:
-#             if stage == 2:
-#                 markup = telebot.types.InlineKeyboardMarkup()
-#                 markup.add(telebot.types.InlineKeyboardButton(
-#                     text='Начать сбор данных',
-#                     callback_data='start_get_data'
-#                 ))
-#                 markup.add(telebot.types.InlineKeyboardButton(
-#                     text='Я знаю сколько я ем сейчас',
-#                     callback_data='start_get_data'
-#                 ))
-#                 cur.execute(
-#                     '''UPDATE user_stage_guide SET stage = ? WHERE user = ?''',
-#                     (3, id)
-#                 )
-#                 con.commit()
-
-#                 keyboard = InlineKeyboard.create_keyboard_stage(id)
-#                 bot.send_message(
-#                     chat_id=id,
-#                     text='Теперь вы умеете считать калории и определять сколько вы съели в течение дня',
-#                     reply_markup=keyboard
-#                 )
-#                 bot.send_message(
-#                     chat_id=id,
-#                     text=(
-#                         'Настало время определить сколько калорий вы '
-#                         'съедаете сейчас. Для этого просто фиксируйте в приложении '
-#                         'каждый прием пищи. Если вы уже знаете сколько едите сейчас, '
-#                         'то данный шаг можно пропустить.'
-#                     ),
-#                     reply_markup=markup
-#                 )
-#                 return
-#             bot.send_message(
-#                 chat_id=id,
-#                 text='Поздравляем, вы вспомнили как считать калории.'
-#             )
-#             return
-#         data = get_question(id)
-#         try:
-#             bot.send_message(
-#                 chat_id=id,
-#                 text=data[0]
-#             )
-#         except:
-#             pass
-#         bot.send_message(
-#             chat_id=id,
-#             text=data[1],
-#             reply_markup=markup
-#         )
-#     else:
-#         bot.send_message(
-#             chat_id=id,
-#             text=(
-#                 f'Неверно, давайте попробуем еще раз\n'
-#                 f'{question}'
-#             ),
-#             reply_markup=markup
-#         )
-#         print('неверно')

@@ -378,7 +378,7 @@ def add_from_menu_day_DCI(call):
     send_yesterday_remind(data[1], call.message)
 
 
-def detail_food(food_id, user_id):
+def detail_food(food_id, user_id, message_id):
     try:
         food = UserDayFood.objects.get(id=food_id)
         if food.name is None:
@@ -386,19 +386,22 @@ def detail_food(food_id, user_id):
         else:
             text = f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
 
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=food.user.id,
+            message_id=message_id,
             text=text,
             reply_markup=InlineKeyboard.detail_day_food(food_id)
         )
     except ObjectDoesNotExist:
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=user_id,
+            message_id=message_id,
             text='Запись была удалена'
         )
     except Exception:
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=user_id,
+            message_id=message_id,
             text='Неизвестная ошибка'
         )
 
@@ -527,7 +530,7 @@ def week_eating(message, eating_id):
         )
 
 
-def delete_day_DCI(message, food_id):
+def delete_day_DCI(message, food_id, message_id):
     try:
         if message.from_user.is_bot:
             id = message.chat.id
@@ -543,8 +546,9 @@ def delete_day_DCI(message, food_id):
             update_stage_5(id, message)
             return
 
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=id,
+            message_id=message_id,
             text=f'Вы удалили {cal_delete}кКл'
         )
         text = create_text_days_eating(calories, id)
@@ -554,13 +558,15 @@ def delete_day_DCI(message, food_id):
             reply_markup=InlineKeyboard.cur_day_food(id, message.date)
         )
     except ObjectDoesNotExist:
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=id,
+            message_id=message_id,
             text='Запись была удалена'
         )
     except Exception:
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=id,
+            message_id=message_id,
             text='Неизвестная ошибка'
         )
 
