@@ -123,7 +123,7 @@ def create_InlineKeyboard_target(message, flag=False):
             if text == 'DCI':
                 markup.add(telebot.types.InlineKeyboardButton(
                     text=f'{text} - {field[text][1]} {field[text][2]}',
-                    url='https://alfagym.ru/wp-content/uploads/b/2/9/b2950dc181b1a619dc1075995da6f7f1.jpg'
+                    url='https://mosturnik.ru/wp-content/uploads/a/9/0/a90e1467657b49e550142394e234c4d6.jpeg'
                 ))
             else:
                 markup.add(telebot.types.InlineKeyboardButton(
