@@ -409,12 +409,12 @@ class Command(BaseCommand):
             markup = telebot.types.InlineKeyboardMarkup()
             try:
                 id = call.message.chat.id
+                bot.clear_step_handler_by_chat_id(chat_id=id)
                 if call.data == 'close':
                     bot.delete_message(
                         chat_id=id,
                         message_id=call.message.message_id
                     )
-                    bot.clear_step_handler_by_chat_id(chat_id=id)
                 elif id not in get_user('id'):
                     start(call.message)
                 elif call.data == 'delete_profile':
