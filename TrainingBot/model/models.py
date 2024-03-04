@@ -19,7 +19,7 @@ class InfoUser(models.Model):
     age = models.IntegerField(blank=True, null=True, default=0)
     height = models.IntegerField(blank=True, null=True, default=0)
     gender = models.TextField(blank=True, null=True, default='None')
-    ideal_weight = models.TextField(blank=True, null=True, default=0)
+    ideal_weight = models.IntegerField(blank=True, null=True, default=0)
     user = models.ForeignKey('User', models.CASCADE, related_name='info')
 
 
