@@ -1,10 +1,10 @@
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Avg, Q
+from django.db.models import Q
 from dotenv import load_dotenv
 import os
 import asyncio
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
@@ -17,6 +17,7 @@ from bot.InlineKeyboardAsync import *
 from bot.ButtonAsync import *
 from bot.State import StateForm
 from bot.config import TYPE
+from bot.FilterAsync import FilterGetCalories
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -98,10 +99,74 @@ class Command(BaseCommand):
 
     @dp.message(StateForm.GET_FOOD)
     async def get_age(message: types.Message, state: FSMContext):
-        await get_food(message, bot)
+        await get_food(message, state, bot)
 
-    @dp.message()
-    async def info(message: types.Message, state: FSMContext):
+    @dp.message(StateForm.GET_NEW_DAY_DCI)
+    async def get_age(message: types.Message, state: FSMContext):
+        state_data = await state.get_data()
+        food_id = state_data.get('food_id')
+        await change_day_DCI(message, food_id, state, bot)
+
+    @dp.message(FilterGetCalories(bot))
+    async def calories(message):
+        tmp = message.text.split()
+        id_first = -1
+        for i in range(len(tmp)):
+            if tmp[i][0].isalpha():
+                id_first = i
+                break
+        name = None
+
+        if len(tmp) == 1:
+            try:
+                calories = eval(message.text)
+            except:
+                await bot.send_message(
+                    chat_id=message.from_user.id,
+                    text='Вводите согласно формату, повторите попытку',
+                )
+                return
+            data = (calories, message.from_user.id)
+        else:
+            if id_first != -1:
+                calories_data = ' '.join(tmp[:id_first])
+                name = ' '.join(tmp[id_first:])
+            else:
+                calories_data = message.text
+
+            try:
+                data = (eval(calories_data),
+                        message.from_user.id)
+            except:
+                await bot.send_message(
+                    chat_id=message.from_user.id,
+                    text=f'Простите, но мы не смогли распознать ваши данные'
+                )
+                return
+
+        food_user = UserDayFood(
+            user=await User.objects.aget(id=data[1]),
+            calories=data[0],
+            name=name,
+            time=message.date
+        )
+        await food_user.asave()
+
+        next_stage, calories = await update_result_day_DCI(message)
+
+        text = await create_text_stage_4_5(calories, data[1])
+        await bot.send_message(
+            chat_id=data[1],
+            text=text
+        )
+        await send_yesterday_remind(data[1], message, bot)
+
+        if next_stage == 'dci_success':
+            await update_stage_5(data[1], message, bot)
+            return
+
+    @dp.message(F.text)
+    async def button_text(message: types.Message, state: FSMContext):
         try:
             id = message.chat.id
 
@@ -255,6 +320,48 @@ class Command(BaseCommand):
                     chat_id=id,
                     text='Если вы хотите завершить мониторинг, то придется ввести текущее кол-во калорий вручную.',
                     reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+                )
+            elif message.text == 'Статистика за день':
+                next_stage, calories = await update_result_day_DCI(message)
+                text = await create_text_days_eating(calories, id)
+
+                await bot.send_message(
+                    chat_id=id,
+                    text=text,
+                    reply_markup=await create_InlineKeyboard_day_food(id, message.date)
+                )
+
+                if next_stage == 'dci_success':
+                    await update_stage_5(id, message, bot)
+                    return
+            elif message.text == 'Моя программа':
+                cur_date = message.date.date()
+                user = await User.objects.aget(id=id)
+                user_program = await user.program.alast()
+                user_target = await user.target.alast()
+
+                len_result_day_dci = await user.result_day_dci.filter(date=cur_date).acount()
+
+                if len_result_day_dci == 0 and user_program.date_start != cur_date:
+                    user_program.cur_day = (
+                        cur_date - user_program.date_start).days + 1
+                    await user_program.asave()
+
+                await update_normal_dci(user, user_program, user_target, cur_date)
+
+                day_result, create = await ResultDayDci.objects.aget_or_create(
+                    user=user,
+                    date=cur_date
+                )
+
+                if create == True:
+                    day_result.deficit = user_program.cur_dci
+
+                await day_result.asave()
+                await bot.send_message(
+                    chat_id=id,
+                    text=('Ваша программа'),
+                    reply_markup=await create_InlineKeyboard_program(id)
                 )
 
         except ObjectDoesNotExist:
@@ -493,6 +600,73 @@ class Command(BaseCommand):
                     chat_id=id,
                     text='Тогда давайте продолжим'
                 )
+            elif call.data.startswith('detail_'):
+                _, food_id = call.data.split('_')
+
+                food = await UserDayFood.objects.aget(id=food_id)
+                if food.name is None:
+                    text = f'{food.time.hour}:{food.time.minute} - {food.calories}кКл'
+                else:
+                    text = f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
+
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text=text,
+                    reply_markup=await create_InlineKeyboard_detail_day_food(food_id)
+                )
+            elif call.data.startswith('delete_day_dci_'):
+                food_id = call.data[15:]
+                food = await UserDayFood.objects.aget(id=food_id)
+                cal_delete = food.calories
+                await food.adelete()
+
+                next_stage, calories = await update_result_day_DCI(call.message)
+
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text=f'Вы удалили {cal_delete}кКл'
+                )
+                text = await create_text_days_eating(calories, id)
+                await bot.send_message(
+                    chat_id=id,
+                    text=text,
+                    reply_markup=await create_InlineKeyboard_day_food(id, call.message.date)
+                )
+
+                if next_stage == 'dci_success':
+                    await update_stage_5(id, call.message, bot)
+                    return
+            elif call.data.startswith('change_day_dci_'):
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text='Введите новые данные\nв виде - кКл блюдо',
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text='Закрыть',
+                            callback_data='close'
+                        )
+                    ]])
+                )
+                food_id = call.data[15:]
+                await state.set_state(StateForm.GET_NEW_DAY_DCI)
+                await state.set_data({'food_id': food_id})
+            elif call.data == 'back_day_food':
+                next_stage, calories = await update_result_day_DCI(call.message)
+                text = await create_text_days_eating(calories, id)
+
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text=text,
+                    reply_markup=await create_InlineKeyboard_day_food(id, call.message.date)
+                )
+
+                if next_stage == 'dci_success':
+                    await update_stage_5(id, call.message, bot)
+                    return
 
         except ObjectDoesNotExist:
             await bot.send_message(

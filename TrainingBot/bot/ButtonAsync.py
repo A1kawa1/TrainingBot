@@ -1,7 +1,6 @@
-﻿from django.db.models import Sum
+﻿from datetime import timedelta
+from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
-from datetime import datetime, timedelta
-import telebot
 
 from bot.InlineKeyboardAsync import *
 from bot.config import *
@@ -165,7 +164,7 @@ async def change_target_weight(message, field, state, bot):
         if target_user.cur_weight <= target_user.target_weight:
             await bot.send_message(
                 chat_id=id,
-                text='Пожалуйста укажите коректный текущий вес и цель',
+                text='Пожалуйста укажите корректный текущий вес и цель',
                 reply_markup=markup
             )
             return
@@ -201,7 +200,7 @@ async def get_activity(call, bot):
             await bot.edit_message_text(
                 chat_id=id,
                 message_id=call.message.message_id,
-                text='Пожалуйста укажите коректный текущий вес и цель',
+                text='Пожалуйста укажите корректный текущий вес и цель',
                 reply_markup=markup
             )
             return
@@ -310,7 +309,7 @@ async def create_program(id, message, for_cur_target=False):
     await target.asave()
 
 
-async def get_food(message, bot):
+async def get_food(message, state, bot):
     id = message.chat.id
 
     foods = message.text.split('\n')
@@ -349,6 +348,8 @@ async def get_food(message, bot):
         )
         return
     else:
+        await state.clear()
+
         await bot.send_message(
             chat_id=id,
             text='Блюдо добавлено'
@@ -560,9 +561,9 @@ async def update_result_day_DCI(message):
             user_target.cur_dci = tmp_res[1]
             await user_target.asave()
             print('dci определено')
-            return 'dci_success'
+            return 'dci_success', result_dci.calories
 
-    return result_dci.calories
+    return None, result_dci.calories
 
 
 async def create_text_stage_4_5(calories, id):
@@ -577,6 +578,22 @@ async def create_text_stage_4_5(calories, id):
             text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
             if calories_last < 0:
                 text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+
+    return text
+
+
+async def create_text_days_eating(calories, id):
+    text = f'Сегодня вы поели на {calories}'
+    if await get_stage(id) == 5:
+        user = await User.objects.aget(id=id)
+        user_program = await user.program.alast()
+        calories_norm = user_program.cur_dci
+
+        calories_last = calories_norm - calories
+        text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
+        if calories_last < 0:
+            text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+
     return text
 
 
@@ -596,11 +613,7 @@ async def add_from_menu_day_DCI(call, bot):
     )
     await food_user.asave()
 
-    calories = await update_result_day_DCI(call.message)
-
-    if calories == 'dci_success':
-        await update_stage_5(data[1], call.message, bot)
-        return
+    next_stage, calories = await update_result_day_DCI(call.message)
 
     text = f'{name} - {data[0]}' if not name is None else f'{data[0]}'
     await bot.send_message(
@@ -614,6 +627,68 @@ async def add_from_menu_day_DCI(call, bot):
         text=text
     )
     await send_yesterday_remind(data[1], call.message, bot)
+
+    if next_stage == 'dci_success':
+        await update_stage_5(data[1], call.message, bot)
+        return
+
+
+async def change_day_DCI(message, food_id, state, bot):
+    try:
+        id = message.chat.id
+        food = await UserDayFood.objects.aget(id=food_id)
+
+        tmp = message.text.split()
+
+        if not await check_int(tmp[0]):
+            await bot.send_message(
+                chat_id=id,
+                text='Вводите целое число, повторите попытку'
+            )
+            return
+
+        if int(tmp[0]) <= 0:
+            await bot.send_message(
+                chat_id=id,
+                text='Вводите положительное число, повторите попытку'
+            )
+            return
+
+        food.calories = int(tmp[0])
+        if len(tmp) > 1:
+            food.name = ' '.join(tmp[1:])
+
+        await food.asave()
+        await state.clear()
+
+        next_stage, calories = await update_result_day_DCI(message)
+
+        await bot.send_message(
+            chat_id=id,
+            text='Вы изменили данные'
+        )
+
+        text = await create_text_days_eating(calories, id)
+
+        await bot.send_message(
+            chat_id=id,
+            text=text,
+            reply_markup=await create_InlineKeyboard_day_food(id, message.date)
+        )
+
+        if next_stage == 'dci_success':
+            await update_stage_5(id, message, bot)
+            return
+    except ObjectDoesNotExist:
+        await bot.send_message(
+            chat_id=id,
+            text='Запись была удалена'
+        )
+    except Exception:
+        await bot.send_message(
+            chat_id=id,
+            text='Неизвестная ошибка'
+        )
 
 
 async def update_stage(id, bot, stage):

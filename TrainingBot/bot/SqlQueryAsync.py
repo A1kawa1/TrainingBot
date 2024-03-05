@@ -1,4 +1,4 @@
-from model.models import *
+from model.models import User, UserStageGuide, InfoUser
 
 
 async def get_user(param):

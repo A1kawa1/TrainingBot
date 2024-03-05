@@ -316,10 +316,12 @@ class Command(BaseCommand):
                     if count_day == 0:
                         regularity = 0
                     else:
-                        regularity = user_days_dci.filter(~Q(calories=0)).count()
+                        regularity = user_days_dci.filter(
+                            ~Q(calories=0)).count()
                         regularity = int(regularity / count_day * 100)
 
-                    data = user_days_dci.filter(~Q(calories=0)).order_by('date')
+                    data = user_days_dci.filter(
+                        ~Q(calories=0)).order_by('date')
                     if len(data) == 0:
                         avg_dci = 0
                     elif len(data) in (1, 2):
@@ -550,7 +552,7 @@ class Command(BaseCommand):
                         message_id=call.message.message_id,
                         text=text,
                         reply_markup=cur_day_food(id, call.message.date)
-                    ) 
+                    )
                 elif call.data == 'add_food':
                     markup.add(telebot.types.InlineKeyboardButton(
                         text='Назад',
@@ -581,7 +583,8 @@ class Command(BaseCommand):
                     detail_food(food_id, id, call.message.message_id)
                 elif call.data.startswith('delete_day_dci_'):
                     food_id = call.data[15:]
-                    delete_day_DCI(call.message, food_id, call.message.message_id)
+                    delete_day_DCI(call.message, food_id,
+                                   call.message.message_id)
                 elif call.data.startswith('change_day_dci_'):
                     markup.add(telebot.types.InlineKeyboardButton(
                         text='Закрыть',
@@ -788,7 +791,6 @@ class Command(BaseCommand):
                     text='Неизвестная ошибка'
                 )
 
-
         def bg_thread():
             check_hour = None
             while True:
@@ -798,14 +800,14 @@ class Command(BaseCommand):
                     cur_time = tmp_datetime.date()
                     reminds = UserStageGuide.objects.select_related(
                         'user').filter(Q(stage__in=[4, 5])
-                                    & (Q(user__remind__remind_first=True)
-                                        | Q(user__remind__remind_second=True)
-                                        | (Q(user__remind__day_without_indication_weight=0)
-                                            & Q(user__remind__remind_weight=True))))
+                                       & (Q(user__remind__remind_first=True)
+                                          | Q(user__remind__remind_second=True)
+                                          | (Q(user__remind__day_without_indication_weight=0)
+                                             & Q(user__remind__remind_weight=True))))
                     set_flags = UserStageGuide.objects.select_related(
                         'user').filter(Q(stage__in=[4, 5])
-                                    & (Q(user__remind__remind_first=False)
-                                        & Q(user__remind__remind_second=False)))
+                                       & (Q(user__remind__remind_first=False)
+                                          & Q(user__remind__remind_second=False)))
                     for remind in reminds:
                         try:
                             user = remind.user

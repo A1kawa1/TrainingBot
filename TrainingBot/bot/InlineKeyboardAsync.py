@@ -1,11 +1,10 @@
-﻿from datetime import datetime
-from bot.config import TYPE, ACTIVITY
-from model.models import (User, UserStageGuide, TargetUser)
-
-from aiogram.types import (ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
+﻿from aiogram.types import (ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
                            InlineKeyboardButton, InlineKeyboardMarkup)
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
+
+from bot.config import TYPE, ACTIVITY
 from bot.SqlQueryAsync import *
+from model.models import *
 
 
 async def create_keyboard_stage(id):
@@ -333,4 +332,61 @@ async def create_InlineKeyboard_food(id):
         text='Закрыть',
         callback_data='close'
     )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def create_InlineKeyboard_day_food(id, time):
+    user = await User.objects.aget(id=id)
+    buttons = []
+
+    foods = user.day_food.filter(
+        time__year=time.year,
+        time__month=time.month,
+        time__day=time.day
+    ).order_by('-time')
+
+    async for food in foods:
+        id = food.id
+        name = food.name
+        calories = food.calories
+        time = food.time
+
+        if name is None:
+            text = f'{time.hour:02}:{time.minute:02} - {calories}кКл'
+        else:
+            text = f'{time.hour:02}:{time.minute:02} - {name} {calories}кКл'
+
+        buttons.append([InlineKeyboardButton(
+            text=text,
+            callback_data=f'detail_{id}'
+        )])
+
+    buttons.append([InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def create_InlineKeyboard_detail_day_food(food_id):
+    buttons = []
+
+    buttons.append([InlineKeyboardButton(
+        text='Изменить',
+        callback_data=f'change_day_dci_{food_id}'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Удалить',
+        callback_data=f'delete_day_dci_{food_id}'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Назад',
+        callback_data='back_day_food'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    )])
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
