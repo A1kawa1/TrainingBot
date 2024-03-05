@@ -287,6 +287,18 @@ class Command(BaseCommand):
                     text='Укажите следующие данные',
                     reply_markup=await create_InlineKeyboard_target(call.message)
                 )
+            elif call.data == 'start_guide':
+                keyboard, markup = await create_InlineKeyboard_guide()
+                await bot.send_message(
+                    chat_id=id,
+                    text='Давайте же начнем обучение.',
+                    reply_markup=keyboard
+                )
+                await bot.send_message(
+                    chat_id=id,
+                    text='Для его прохождение пожалуйста перейдите по ссылке и ответьте на несколько простых вопросов.',
+                    reply_markup=markup
+                )
         except ObjectDoesNotExist:
             await bot.send_message(
                 chat_id=id,

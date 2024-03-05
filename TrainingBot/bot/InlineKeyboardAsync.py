@@ -213,3 +213,20 @@ async def create_InlineKeyboard_activity():
     )])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def create_InlineKeyboard_guide():
+    buttons_keyboard = [[KeyboardButton(text='Завершить обучение')]]
+    buttons_markup = []
+
+    buttons_markup.append([InlineKeyboardButton(
+        text='Пройти курс',
+        url=f'https://changeyourbody.ru/kak-schitat-kalorii'
+    )])
+    buttons_markup.append([InlineKeyboardButton(
+        text='Завершить обучение',
+        callback_data='skip_guide'
+    )])
+
+    return (InlineKeyboardMarkup(inline_keyboard=buttons_markup),
+            ReplyKeyboardMarkup(keyboard=buttons_keyboard, resize_keyboard=True))
