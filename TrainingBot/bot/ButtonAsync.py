@@ -231,7 +231,7 @@ async def change_cur_DCI(message, state, bot):
         )
         return
     if int(message.text) <= 0:
-        bot.send_message(
+        await bot.send_message(
             chat_id=id,
             text='Вводите положительное число, повторите попытку'
         )
@@ -310,6 +310,312 @@ async def create_program(id, message, for_cur_target=False):
     await target.asave()
 
 
+async def get_food(message, bot):
+    id = message.chat.id
+
+    foods = message.text.split('\n')
+
+    count_success = 0
+    for el in foods:
+        id_space = el.find(' ')
+        if id_space == -1:
+            calories = el
+            name = None
+        else:
+            calories = el[:id_space]
+            name = el[id_space+1:].strip()
+
+        if not await check_int(calories):
+            continue
+
+        count_success += 1
+        user = await User.objects.aget(id=id)
+        await UserFood.objects.aget_or_create(
+            user=user,
+            name=name,
+            calories=calories
+        )
+
+    if not count_success:
+        await bot.send_message(
+            chat_id=id,
+            text='Мы не смогли распознать ни одного блюда. Попробуйте еще раз',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
+        )
+        return
+    else:
+        await bot.send_message(
+            chat_id=id,
+            text='Блюдо добавлено'
+        )
+    await bot.send_message(
+        chat_id=id,
+        text='Выберите что вы поели',
+        reply_markup=await create_InlineKeyboard_food(id)
+    )
+
+
+async def send_yesterday_remind(id, message, bot):
+    if await get_stage(id) == 5:
+        cur_time = message.date
+        user = await User.objects.aget(id=id)
+
+        len_day_food = await user.day_food.filter(
+            time__year=cur_time.year,
+            time__month=cur_time.month,
+            time__day=cur_time.day
+        ).acount()
+
+        if len_day_food == 1:
+            result_day_dci = user.result_day_dci
+            if await result_day_dci.all().acount() >= 2:
+                res = await result_day_dci.aget(
+                    date=cur_time.date()-timedelta(days=1))
+
+                deficit = res.deficit
+                result = res.calories
+
+                if result == 0:
+                    await template_send_message(
+                        bot, id, 'yesterday_non_calories')
+                    return
+                elif deficit > 0:
+                    mes = await Message.objects.filter(mesKey='yesterday_deficit').alast()
+                    mes = mes.message + f' Вы сэкономили {deficit} калорий'
+                else:
+                    mes = await Message.objects.filter(mesKey='yesterday_proficit').alast()
+                    mes = mes.message + f' Вы переели на {-deficit} калорий'
+
+                await bot.send_message(
+                    chat_id=id,
+                    text=mes
+                )
+
+
+async def get_normal_dci(id, phase1, cur_day):
+    user = await User.objects.aget(id=id)
+    user_target = await user.target.alast()
+
+    if cur_day > phase1:
+        return user_target.dci * (1 - user_target.percentage_decrease / 100)
+    else:
+        if cur_day % 7 == 0:
+            number_week = cur_day // 7
+        else:
+            number_week = cur_day // 7 + 1
+        tmp = user_target.cur_dci - 100 * number_week
+        if tmp < user_target.dci:
+            tmp = user_target.dci
+        return tmp
+
+
+async def update_normal_dci(user, user_program, user_target, cur_date):
+    dci = user_target.dci
+
+    if ((user_program.cur_day - user_program.phase1) == 1
+            and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
+        user_program.cur_dci = get_normal_dci(
+            user.id, user_program.phase1, user_program.cur_day)
+    else:
+        len_result_day_dci = await user.result_day_dci.filter(date=cur_date).acount()
+        if (len_result_day_dci == 0
+            and user_program.cur_day != 1
+                and user_program.phase1 != 0):
+            user_program.cur_dci = get_normal_dci(
+                user.id, user_program.phase1, user_program.cur_day)
+
+    await user_program.asave()
+
+
+async def analise_data(data):
+    result = []
+    zeroDaysCount = 0
+    tmpPrev = 0
+    for i in range(len(data)):
+        current = data[i]
+        if len(result) > 0:
+            prev = result[-1]
+            if current != 0 and abs(1 - prev / current) <= 0.2:
+                result.append(current)
+            else:
+                if zeroDaysCount == 0:
+                    tmpPrev = current
+                    zeroDaysCount += 1
+                else:
+                    zeroDaysCount = 0
+                    result.clear()
+                    if current != 0 and abs(1 - tmpPrev / current) <= 0.2:
+                        result.append(tmpPrev)
+                    result.append(current)
+        else:
+            result.append(current)
+        if len(result) - result.count(0) >= 3:
+            break
+    if len(result) - result.count(0) >= 3:
+        return (True, int(sum(result)/len(result)))
+
+    return (False, None)
+
+
+async def create_data_to_analise(id):
+    data = ResultDayDci.objects.filter(user=id).order_by(
+        'date').values_list('calories', 'date')
+
+    calories = []
+    date = []
+    async for el in data:
+        calories.append(el[0])
+        date.append(el[1])
+
+    if len(data) < 5:
+        return False
+
+    calories.pop(0)
+    calories.pop()
+    date.pop(0)
+    date.pop()
+
+    res_calories = []
+
+    for index in range(len(date)-1):
+        res_calories.append(calories[index])
+        days_delta = date[index+1] - date[index]
+        if days_delta != timedelta(days=1):
+            res_calories.extend([0]*(days_delta.days-1))
+
+    res_calories.append(calories[-1])
+    return res_calories
+
+
+async def check_variance(id):
+    data = await create_data_to_analise(id)
+    if not data:
+        print('мало данных')
+        return (False, None)
+
+    return await analise_data(data)
+
+
+async def update_result_day_DCI(message):
+    id = message.chat.id
+
+    cur_time = message.date
+    user = await User.objects.aget(id=id)
+    remind = await user.remind.alast()
+
+    calories = await user.day_food.filter(
+        time__year=cur_time.year,
+        time__month=cur_time.month,
+        time__day=cur_time.day
+    ).aaggregate(Sum('calories'))
+
+    if calories.get('calories__sum') is None:
+        calories['calories__sum'] = 0
+
+    if calories.get('calories__sum') != 0:
+        remind.remind_first = False
+        await remind.asave()
+
+    cur_date = cur_time.date()
+
+    user_target = await user.target.alast()
+
+    if await get_stage(id) == 5:
+        user_program = await user.program.alast()
+
+        if calories.get('calories__sum') > user_program.cur_dci / 2:
+            remind.remind_second = False
+            await remind.asave()
+
+        len_result_day_dci = await user.result_day_dci.filter(date=cur_date).acount()
+        if len_result_day_dci == 0 and user_program.date_start != cur_date:
+            user_program.cur_day = (
+                cur_date - user_program.date_start).days + 1
+            await user_program.asave()
+
+        await update_normal_dci(user, user_program, user_target, cur_date)
+
+    result_dci, _ = await ResultDayDci.objects.aget_or_create(
+        user=user,
+        date=cur_date
+    )
+
+    if await get_stage(id) == 4:
+        norm = user_target.dci
+    else:
+        norm = user_program.cur_dci
+
+    result_dci.calories = calories.get('calories__sum')
+    result_dci.deficit = norm - calories.get('calories__sum')
+    await result_dci.asave()
+
+    if await get_stage(id) == 4:
+        tmp_res = await check_variance(id)
+        if tmp_res[0]:
+            user_target.cur_dci = tmp_res[1]
+            await user_target.asave()
+            print('dci определено')
+            return 'dci_success'
+
+    return result_dci.calories
+
+
+async def create_text_stage_4_5(calories, id):
+    text = f'Сегодня вы поели на {calories}'
+    if await get_stage(id) == 5:
+        user = await User.objects.aget(id=id)
+        user_program = await user.program.alast()
+        calories_norm = user_program.cur_dci
+
+        calories_last = calories_norm - calories
+        if calories / calories_norm * 100 > 100 - K_MESSAGE_DANGER:
+            text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
+            if calories_last < 0:
+                text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+    return text
+
+
+async def add_from_menu_day_DCI(call, bot):
+    name = None
+    msg = call.data[5:]
+    name, calories = msg.split('_')
+    if name == 'None':
+        name = None
+    data = (int(calories), call.message.chat.id, call.message.date)
+
+    food_user = UserDayFood(
+        user=await User.objects.aget(id=data[1]),
+        name=name,
+        calories=data[0],
+        time=data[2]
+    )
+    await food_user.asave()
+
+    calories = await update_result_day_DCI(call.message)
+
+    if calories == 'dci_success':
+        await update_stage_5(data[1], call.message, bot)
+        return
+
+    text = f'{name} - {data[0]}' if not name is None else f'{data[0]}'
+    await bot.send_message(
+        chat_id=data[1],
+        text=text
+    )
+
+    text = await create_text_stage_4_5(calories, data[1])
+    await bot.send_message(
+        chat_id=data[1],
+        text=text
+    )
+    await send_yesterday_remind(data[1], call.message, bot)
+
+
 async def update_stage(id, bot, stage):
     user_stage_guide = await UserStageGuide.objects.aget(user=id)
     user_stage_guide.stage = stage
@@ -317,6 +623,18 @@ async def update_stage(id, bot, stage):
 
     await template_send_message(bot, id, f'stage{stage}')
     await template_send_message(bot, id, f'stage{stage}_last')
+
+
+async def update_stage_4(id, bot):
+    user_stage_guide = await UserStageGuide.objects.aget(user=id)
+    user_stage_guide.stage = 4
+    await user_stage_guide.asave()
+
+    await bot.send_message(
+        chat_id=id,
+        text='Начинаем фиксировать данные, не забывайте фиксировать каждый прием пищи.',
+        reply_markup=await create_keyboard_stage(id)
+    )
 
 
 async def update_stage_5(id, message, bot):

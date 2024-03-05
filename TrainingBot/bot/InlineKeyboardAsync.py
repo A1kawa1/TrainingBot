@@ -308,3 +308,29 @@ async def create_InlineKeyboard_program(id):
         callback_data='close'
     )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def create_InlineKeyboard_food(id):
+    foods = UserFood.objects.filter(user=id)
+    buttons = []
+
+    if await foods.aexists():
+        async for food in foods:
+            if food.name is None:
+                text = f'{food.calories}'
+            else:
+                text = f'{food.name} - {food.calories}'
+            buttons.append([InlineKeyboardButton(
+                text=text,
+                callback_data=f'food_{food.name}_{food.calories}'
+            )])
+
+    buttons.append([InlineKeyboardButton(
+        text='Добавить блюдо',
+        callback_data='add_food'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

@@ -7,3 +7,4 @@ class StateForm(StatesGroup):
     GET_CUR_WEIGHT = State()
     GET_TARGET_WEIGHT = State()
     GET_CUR_DCI = State()
+    GET_FOOD = State()

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Avg, Q
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -95,6 +96,10 @@ class Command(BaseCommand):
     async def get_age(message: types.Message, state: FSMContext):
         await change_cur_DCI(message, state, bot)
 
+    @dp.message(StateForm.GET_FOOD)
+    async def get_age(message: types.Message, state: FSMContext):
+        await get_food(message, bot)
+
     @dp.message()
     async def info(message: types.Message, state: FSMContext):
         try:
@@ -178,6 +183,80 @@ class Command(BaseCommand):
                     text='Поздравляем, вы вспомнили как считать калории.',
                     reply_markup=await create_keyboard_stage(id)
                 )
+            elif message.text == 'Начать сбор данных':
+                await update_stage_4(id, bot)
+            elif message.text == 'Меню':
+                await bot.send_message(
+                    chat_id=id,
+                    text='Выберите что вы поели',
+                    reply_markup=await create_InlineKeyboard_food(id)
+                )
+            elif message.text == 'Мониторинг':
+                user_days_dci = ResultDayDci.objects.filter(user=id)
+                count_day = await user_days_dci.acount()
+                if count_day == 0:
+                    regularity = 0
+                else:
+                    regularity = await user_days_dci.filter(~Q(calories=0)).acount()
+                    regularity = int(regularity / count_day * 100)
+
+                data = user_days_dci.filter(~Q(calories=0)).order_by('date')
+                len_data = await data.acount()
+
+                calories = []
+                if len_data == 0:
+                    avg_dci = 0
+                elif len_data in (1, 2, 3):
+                    async for el in data:
+                        calories.append(el.calories)
+
+                    if len_data in (1, 2):
+                        avg_dci = calories[0]
+                    else:
+                        avg_dci = calories[1]
+                else:
+                    data_dci = []
+                    async for el in data[1:len_data-1]:
+                        data_dci.append(el.calories)
+
+                    avg_dci = int(sum(data_dci) / len(data_dci))
+
+                buttons = [
+                    [InlineKeyboardButton(
+                        text=f'Дней мониторинга: {count_day}',
+                        callback_data='asdasdf'
+                    )],
+                    [InlineKeyboardButton(
+                        text=f'Регулярность ввода данных: {regularity}%',
+                        callback_data='asdasdf'
+                    )],
+                    [InlineKeyboardButton(
+                        text=f'Текущее кол-во калорий в день: {avg_dci}',
+                        callback_data='asdasdf'
+                    )]
+                ]
+                await bot.send_message(
+                    chat_id=id,
+                    text='Мы еще не уверены сколько вы едите в день.\nТекущие показатели мониторинга следующие:',
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+                )
+
+                buttons = [
+                    [InlineKeyboardButton(
+                        text='Завершить мониторинг',
+                        callback_data='end_monitoring'
+                    )],
+                    [InlineKeyboardButton(
+                        text='Продолжить мониторинг',
+                        callback_data='continue_monitoring'
+                    )]
+                ]
+                await bot.send_message(
+                    chat_id=id,
+                    text='Если вы хотите завершить мониторинг, то придется ввести текущее кол-во калорий вручную.',
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+                )
+
         except ObjectDoesNotExist:
             await bot.send_message(
                 chat_id=id,
@@ -380,6 +459,40 @@ class Command(BaseCommand):
                     ]])
                 )
                 await state.set_state(StateForm.GET_CUR_DCI)
+            elif call.data == 'start_get_cur_DCI':
+                await update_stage_4(id, bot)
+            elif call.data == 'add_food':
+                buttons = [[
+                    InlineKeyboardButton(
+                        text='Назад',
+                        callback_data='back_menu_main'
+                    ),
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]]
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text='Отправьте название и каллорийность\nв виде: кКл блюдо\n(несколько блюд вводите с новой строки)',
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+                )
+                await state.set_state(StateForm.GET_FOOD)
+            elif call.data.startswith('back_menu_main'):
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text='Выберите что вы поели',
+                    reply_markup=await create_InlineKeyboard_food(id)
+                )
+            elif call.data.startswith('food_'):
+                await add_from_menu_day_DCI(call, bot)
+            elif call.data == 'continue_monitoring':
+                await bot.send_message(
+                    chat_id=id,
+                    text='Тогда давайте продолжим'
+                )
 
         except ObjectDoesNotExist:
             await bot.send_message(

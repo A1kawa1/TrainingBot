@@ -3,11 +3,6 @@ from datetime import datetime
 import uuid
 
 
-class Food(models.Model):
-    name = models.TextField(blank=True, null=True)
-    calories = models.IntegerField(blank=True, null=True)
-
-
 class Guide(models.Model):
     advice = models.TextField(blank=True, null=True)
     question = models.TextField(blank=True, null=True)
@@ -48,7 +43,8 @@ class User(models.Model):
 
 class UserFood(models.Model):
     user = models.ForeignKey(User, models.CASCADE, related_name='food')
-    food = models.ForeignKey(Food, models.CASCADE, related_name='food')
+    name = models.TextField(blank=True, null=True)
+    calories = models.IntegerField(blank=True, null=True)
 
 
 class UserStageGuide(models.Model):
