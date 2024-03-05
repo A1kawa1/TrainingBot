@@ -1,10 +1,13 @@
 ﻿from datetime import datetime
+
+import aiogram
+from aiogram import types
 from bot.config import TYPE, ACTIVITY
 from model.models import (User, UserStageGuide, TargetUser)
 
 from aiogram.types import (ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
                            InlineKeyboardButton, InlineKeyboardMarkup)
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from bot.SqlQueryAsync import *
 
 
@@ -30,9 +33,12 @@ async def create_keyboard_stage(id):
                    'Мастер обучения', 'Статистика за день',
                    'Статистика за неделю', 'Сброс')
 
-    buttons = [[KeyboardButton(text=button) for button in buttons]]
+    builder = ReplyKeyboardBuilder()
+    for button in buttons:
+        builder.add(types.KeyboardButton(text=button))
+    builder.adjust(3)
 
-    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    return builder.as_markup(resize_keyboard=True)
 
 
 async def last_message(mesKey):
