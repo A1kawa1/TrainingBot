@@ -58,7 +58,7 @@ async def last_message(mesKey):
             )],
             [InlineKeyboardButton(
                 text='Перейти на следующий уровень',
-                callback_data='skip_guide'
+                callback_data='skip_guide_stage_2'
             )
         ]]
     elif mesKey == 'stage3_last':

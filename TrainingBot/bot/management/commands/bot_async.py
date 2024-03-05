@@ -134,6 +134,12 @@ class Command(BaseCommand):
                     text='Давайте выберем, что вы хотите',
                     reply_markup=await create_InlineKeyboard_target(message)
                 )
+            elif message.text == 'Завершить обучение':
+                if await get_stage(id) > 2:
+                    return
+
+                await update_stage(id, bot, 3)
+
         except ObjectDoesNotExist:
             await bot.send_message(
                 chat_id=id,
@@ -299,6 +305,22 @@ class Command(BaseCommand):
                     text='Для его прохождение пожалуйста перейдите по ссылке и ответьте на несколько простых вопросов.',
                     reply_markup=markup
                 )
+            elif call.data == 'skip_guide':
+                if await get_stage(id) > 2:
+                    await bot.send_message(
+                        chat_id=id,
+                        text='Поздравляем, вы вспомнили как считать калории.',
+                        reply_markup=await create_keyboard_stage(id)
+                    )
+                    return
+
+                await update_stage(id, bot, 3)
+            elif call.data == 'skip_guide_stage_2':
+                if await get_stage(id) > 2:
+                    return
+
+                await update_stage(id, bot, 3)
+
         except ObjectDoesNotExist:
             await bot.send_message(
                 chat_id=id,

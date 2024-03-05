@@ -105,7 +105,7 @@ async def change_info(message, field, state, bot):
     if (all([info_user.age, info_user.height])
         and info_user.gender != 'None'
             and await get_stage(id) == 0):
-        await update_stage_1(id, bot)
+        await update_stage(id, bot, 1)
 
 
 async def get_gender(call, bot):
@@ -127,7 +127,7 @@ async def get_gender(call, bot):
     if (all([info_user.age, info_user.height])
         and info_user.gender != 'None'
             and await get_stage(id) == 0):
-        await update_stage_1(id, bot)
+        await update_stage(id, bot, 1)
 
 
 async def change_target_weight(message, field, state, bot):
@@ -174,7 +174,7 @@ async def change_target_weight(message, field, state, bot):
             text='Укажите следующие данные',
             reply_markup=markup
         )
-        await update_stage_2(id, bot)
+        await update_stage(id, bot, 2)
     else:
         await bot.send_message(
             chat_id=id,
@@ -211,7 +211,7 @@ async def get_activity(call, bot):
             text='Укажите следующие данные',
             reply_markup=markup
         )
-        await update_stage_2(id, bot)
+        await update_stage(id, bot, 2)
     else:
         await bot.edit_message_text(
             chat_id=id,
@@ -221,19 +221,11 @@ async def get_activity(call, bot):
         )
 
 
-async def update_stage_1(id, bot):
+async def update_stage(id, bot, stage):
     user_stage_guide = await UserStageGuide.objects.aget(user=id)
-    user_stage_guide.stage = 1
+    user_stage_guide.stage = stage
     await user_stage_guide.asave()
 
-    await template_send_message(bot, id, 'stage1')
-    await template_send_message(bot, id, 'stage1_last')
+    await template_send_message(bot, id, f'stage{stage}')
+    await template_send_message(bot, id, f'stage{stage}_last')
 
-
-async def update_stage_2(id, bot):
-    user_stage_guide = await UserStageGuide.objects.aget(user=id)
-    user_stage_guide.stage = 2
-    await user_stage_guide.asave()
-
-    await template_send_message(bot, id, 'stage2')
-    await template_send_message(bot, id, 'stage2_last')
