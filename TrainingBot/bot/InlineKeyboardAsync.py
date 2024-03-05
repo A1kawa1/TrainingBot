@@ -4,7 +4,7 @@ from model.models import (User, UserStageGuide, TargetUser)
 
 from aiogram.types import (ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
                            InlineKeyboardButton, InlineKeyboardMarkup)
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from bot.SqlQueryAsync import *
 
 
@@ -30,9 +30,13 @@ async def create_keyboard_stage(id):
                    'Мастер обучения', 'Статистика за день',
                    'Статистика за неделю', 'Сброс')
 
-    buttons = [[KeyboardButton(text=button) for button in buttons]]
+    builder = ReplyKeyboardBuilder()
 
-    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    for button in buttons:
+        builder.add(KeyboardButton(text=button))
+    builder.adjust(3)
+
+    return builder.as_markup(resize_keyboard=True)
 
 
 async def last_message(mesKey):
@@ -215,18 +219,92 @@ async def create_InlineKeyboard_activity():
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-async def create_InlineKeyboard_guide():
-    buttons_keyboard = [[KeyboardButton(text='Завершить обучение')]]
+async def create_InlineKeyboard_guide(id):
     buttons_markup = []
-
     buttons_markup.append([InlineKeyboardButton(
         text='Пройти курс',
         url=f'https://changeyourbody.ru/kak-schitat-kalorii'
     )])
-    buttons_markup.append([InlineKeyboardButton(
-        text='Завершить обучение',
-        callback_data='skip_guide'
-    )])
+
+    if await get_stage(id) == 2:
+        buttons_keyboard = [[KeyboardButton(text='Завершить обучение')]]
+
+        buttons_markup.append([InlineKeyboardButton(
+            text='Завершить обучение',
+            callback_data='skip_guide'
+        )])
+    else:
+        buttons_keyboard = [[KeyboardButton(text='Я все вспомнил')]]
+
+        buttons_markup.append([InlineKeyboardButton(
+            text='Я все вспомнил',
+            callback_data='skip_guide'
+        )])
 
     return (InlineKeyboardMarkup(inline_keyboard=buttons_markup),
             ReplyKeyboardMarkup(keyboard=buttons_keyboard, resize_keyboard=True))
+
+
+async def create_InlineKeyboard_program(id):
+    user = await User.objects.aget(id=id)
+    target = await TargetUser.objects.filter(user=user).alast()
+    program = await UserProgram.objects.filter(target=target).alast()
+    buttons = []
+
+    buttons.append([InlineKeyboardButton(
+        text=f'Цель: похудеть c {target.cur_weight} кг до {target.target_weight} кг',
+        callback_data='adfsgd'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=f'Дата начала: {program.date_start}',
+        callback_data='adfsgd'
+    )])
+    # markup.add(
+    #     telebot.types.InlineKeyboardButton(
+    #         text=f'Рацион в начале: {program.start_dci} кКл',
+    #         callback_data='adfsgd'
+    #     )
+    # )
+    buttons.append([InlineKeyboardButton(
+        text=f'Норма потребления: {target.dci} кКл',
+        callback_data='adfsgd'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=f'Фаза 1: {program.phase1} дней',
+        callback_data='adfsgd'
+    )])
+
+    buttons.append([InlineKeyboardButton(
+        text=f'Фаза 2: {program.phase2} дней',
+        callback_data='adfsgd'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=f'Прошло дней: {program.cur_day}',
+        callback_data='adfsgd'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=f'Текущий рацион: {program.cur_dci} кКл',
+        callback_data='adfsgd'
+    )])
+
+    buttons.append([InlineKeyboardButton(
+        text=f'Текущий вес: {program.cur_weight} кг',
+        callback_data='adfsgd'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=f'Достижение цели: {program.achievement}%',
+        callback_data='adfsgd'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Изменить текущую цель',
+        callback_data='change_cur_target'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Указать текущий вес',
+        callback_data='change_weight_in_program'
+    )])
+    buttons.append([InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

@@ -91,8 +91,12 @@ class Command(BaseCommand):
     async def get_age(message: types.Message, state: FSMContext):
         await change_target_weight(message, 'cur_weight', state, bot)
 
+    @dp.message(StateForm.GET_CUR_DCI)
+    async def get_age(message: types.Message, state: FSMContext):
+        await change_cur_DCI(message, state, bot)
+
     @dp.message()
-    async def info(message: types.Message):
+    async def info(message: types.Message, state: FSMContext):
         try:
             id = message.chat.id
 
@@ -139,7 +143,41 @@ class Command(BaseCommand):
                     return
 
                 await update_stage(id, bot, 3)
+            elif message.text == 'Я знаю сколько я ем сейчас':
+                await bot.send_message(
+                    chat_id=id,
+                    text=(
+                        'Укажите сколько калорий вы съедаете сейчас в сутки и '
+                        'мы рассчитаем программу управления весом для '
+                        'достижения достигнутой цели.'
+                    ),
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text='Закрыть',
+                            callback_data='close'
+                        )
+                    ]])
+                )
+                await state.set_state(StateForm.GET_CUR_DCI)
+            elif message.text == 'Мастер обучения':
+                keyboard, markup = await create_InlineKeyboard_guide(id)
 
+                await bot.send_message(
+                    chat_id=id,
+                    text='Давайте же вспомним как считать калории.',
+                    reply_markup=keyboard
+                )
+                await bot.send_message(
+                    chat_id=id,
+                    text='Для этого пожалуйста перейдите по ссылке и ответьте на несколько простых вопросов.',
+                    reply_markup=markup
+                )
+            elif message.text == 'Я все вспомнил':
+                await bot.send_message(
+                    chat_id=id,
+                    text='Поздравляем, вы вспомнили как считать калории.',
+                    reply_markup=await create_keyboard_stage(id)
+                )
         except ObjectDoesNotExist:
             await bot.send_message(
                 chat_id=id,
@@ -294,7 +332,7 @@ class Command(BaseCommand):
                     reply_markup=await create_InlineKeyboard_target(call.message)
                 )
             elif call.data == 'start_guide':
-                keyboard, markup = await create_InlineKeyboard_guide()
+                keyboard, markup = await create_InlineKeyboard_guide(id)
                 await bot.send_message(
                     chat_id=id,
                     text='Давайте же начнем обучение.',
@@ -320,6 +358,28 @@ class Command(BaseCommand):
                     return
 
                 await update_stage(id, bot, 3)
+            elif call.data in ['get_cur_DCI', 'end_monitoring']:
+                if call.data == 'get_cur_DCI' and await get_stage(id) != 3:
+                    return
+
+                if call.data == 'end_monitoring' and await get_stage(id) != 4:
+                    return
+
+                await bot.send_message(
+                    chat_id=id,
+                    text=(
+                        'Укажите сколько калорий вы съедаете сейчас в сутки и '
+                        'мы рассчитаем программу управления весом для '
+                        'достижения достигнутой цели.'
+                    ),
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text='Закрыть',
+                            callback_data='close'
+                        )
+                    ]])
+                )
+                await state.set_state(StateForm.GET_CUR_DCI)
 
         except ObjectDoesNotExist:
             await bot.send_message(

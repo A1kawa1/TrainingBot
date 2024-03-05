@@ -6,3 +6,4 @@ class StateForm(StatesGroup):
     GET_HEIGHT = State()
     GET_CUR_WEIGHT = State()
     GET_TARGET_WEIGHT = State()
+    GET_CUR_DCI = State()

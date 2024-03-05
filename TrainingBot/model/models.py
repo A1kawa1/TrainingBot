@@ -32,7 +32,8 @@ class TargetUser(models.Model):
     target_weight = models.FloatField(blank=True, null=True, default=0)
     percentage_decrease = models.IntegerField(default=15)
     user = models.ForeignKey('User', models.CASCADE, related_name='target')
-    program = models.ForeignKey('UserProgram', models.SET_NULL, null=True)
+    program = models.ForeignKey(
+        'UserProgram', models.SET_NULL, null=True, related_name='target')
     achieved = models.BooleanField(default=False)
 
 

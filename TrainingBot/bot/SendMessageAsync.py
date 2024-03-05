@@ -6,19 +6,25 @@ from bot.InlineKeyboardAsync import create_keyboard_stage, last_message
 async def template_send_message(bot, chat_id, key):
     messages = Message.objects.filter(mesKey=key).order_by('order')
     if '_last' in key:
-        messages = await messages.afirst()
-        await bot.send_message(
-            chat_id=chat_id,
-            text=messages.message,
-            reply_markup=await last_message(key)
-        )
-    else:
-        async for mes in messages:
+        try:
+            messages = await messages.afirst()
             await bot.send_message(
                 chat_id=chat_id,
-                text=mes.message,
-                reply_markup=await create_keyboard_stage(chat_id)
+                text=messages.message,
+                reply_markup=await last_message(key)
             )
+        except:
+            ...
+    else:
+        async for mes in messages:
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=mes.message,
+                    reply_markup=await create_keyboard_stage(chat_id)
+                )
+            except:
+                ...
 
 
 def check_remind(cur_time, user):

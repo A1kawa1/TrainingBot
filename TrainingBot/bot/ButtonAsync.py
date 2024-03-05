@@ -221,6 +221,95 @@ async def get_activity(call, bot):
         )
 
 
+async def change_cur_DCI(message, state, bot):
+    id = message.chat.id
+
+    if not await check_int(message.text):
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите целое число, повторите попытку'
+        )
+        return
+    if int(message.text) <= 0:
+        bot.send_message(
+            chat_id=id,
+            text='Вводите положительное число, повторите попытку'
+        )
+        return
+
+    target_user = await TargetUser.objects.filter(user=id).alast()
+    target_user.cur_dci = int(message.text)
+    await target_user.asave()
+
+    await state.clear()
+
+    if await get_stage(id) in (3, 4):
+        await update_stage_5(id, message, bot)
+        return
+
+    await bot.send_message(
+        chat_id=id,
+        text='Вы изменили текущий DCI'
+    )
+
+
+async def create_program(id, message, for_cur_target=False):
+    cur_date = message.date
+
+    user = await User.objects.aget(id=id)
+    target = await user.target.alast()
+    cur_dci = target.cur_dci
+    dci = target.dci
+    cur_weight = target.cur_weight
+    target_weight = target.target_weight
+
+    phase1 = (int((cur_dci - dci) / 100) + 1) * 7 if (cur_dci - dci) > 0 else 0
+    phase2 = (6000 * (cur_weight - target_weight) / 200 /
+              K_PHASE2) if (cur_weight - target_weight) > 0 else 0
+    cur_dci_tmp = 0
+
+    if phase1 == 0:
+        cur_dci_tmp = dci * (1 - target.percentage_decrease / 100)
+    elif (cur_dci - dci) > 100:
+        cur_dci_tmp = cur_dci - 100
+    else:
+        cur_dci_tmp = dci
+
+    if for_cur_target:
+        cur_program = await user.program.alast()
+        cur_weight = cur_program.cur_weight
+        cur_program.date_start = cur_date
+        cur_program.start_dci = cur_dci
+        cur_program.cur_dci = cur_dci_tmp
+        cur_program.phase1 = phase1
+        cur_program.phase2 = phase2
+        cur_program.cur_day = 1
+        cur_program.cur_weight = cur_weight
+        cur_program.achievement = int((
+            (target.cur_weight - cur_weight) /
+            (target.cur_weight - target.target_weight)
+        ) * 100)
+        await cur_program.asave()
+        return
+
+    program = UserProgram(
+        user=user,
+        date_start=cur_date,
+        start_dci=cur_dci,
+        cur_dci=cur_dci_tmp,
+        phase1=phase1,
+        phase2=phase2,
+        cur_day=1,
+        cur_weight=cur_weight,
+        achievement=0
+    )
+
+    await program.asave()
+
+    target.program = program
+    await target.asave()
+
+
 async def update_stage(id, bot, stage):
     user_stage_guide = await UserStageGuide.objects.aget(user=id)
     user_stage_guide.stage = stage
@@ -229,3 +318,18 @@ async def update_stage(id, bot, stage):
     await template_send_message(bot, id, f'stage{stage}')
     await template_send_message(bot, id, f'stage{stage}_last')
 
+
+async def update_stage_5(id, message, bot):
+    user_stage_guide = await UserStageGuide.objects.aget(user=id)
+    user_stage_guide.stage = 5
+    await user_stage_guide.asave()
+
+    await create_program(id, message)
+
+    await template_send_message(bot, id, 'stage5')
+
+    await bot.send_message(
+        chat_id=id,
+        text='Ваша программа',
+        reply_markup=await create_InlineKeyboard_program(id)
+    )
