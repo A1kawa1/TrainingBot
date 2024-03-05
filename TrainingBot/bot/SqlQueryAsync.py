@@ -15,10 +15,6 @@ async def get_stage(id):
 
 
 async def get_info(message):
-    if message.from_user.is_bot:
-        id = message.chat.id
-    else:
-        id = message.from_user.id
-
+    id = message.chat.id
     info_user = await InfoUser.objects.aget(user=id)
     return info_user
