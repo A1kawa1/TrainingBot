@@ -605,9 +605,11 @@ class Command(BaseCommand):
 
                 food = await UserDayFood.objects.aget(id=food_id)
                 if food.name is None:
-                    text = f'{food.time.hour}:{food.time.minute} - {food.calories}кКл'
+                    text = (f'{food.time.hour}:{food.time.minute} '
+                            f'- {food.calories}кКл')
                 else:
-                    text = f'{food.time.hour}:{food.time.minute} - {food.name} {food.calories}кКл'
+                    text = (f'{food.time.hour}:{food.time.minute} '
+                            f'- {food.name} {food.calories}кКл')
 
                 await bot.edit_message_text(
                     chat_id=id,

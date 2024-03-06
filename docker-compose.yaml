@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13.0-alpine
+    volumes:
+      - data_value:/var/lib/postgresql/data/
+    env_file:
+      - .env
+
+  tg_bot:
+    image: a1kawa/training_bot:latest
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate && python manage.py bot_async"
+    env_file:
+      - .env
+
+  web:
+    image: a1kawa/training_bot:latest
+    restart: unless-stopped
+    volumes:
+      - static_value:/app/static/
+    depends_on:
+      - db
+    command: sh -c "python manage.py migrate && gunicorn TrainingBot.wsgi:application --bind 0:8000"
+    env_file:
+      - .env
+
+  nginx:
+    image: nginx:1.21.3-alpine
+    restart: unless-stopped
+    ports:
+      - "8084:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - static_value:/var/html/static/
+    depends_on:
+      - web
+
+volumes:
+  static_value:
+  data_value:

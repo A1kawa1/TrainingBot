@@ -577,7 +577,8 @@ async def create_text_stage_4_5(calories, id):
         if calories / calories_norm * 100 > 100 - K_MESSAGE_DANGER:
             text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
             if calories_last < 0:
-                text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+                text = (f'Сегодня вы поели на {calories}'
+                        f'\nВы переели на {-calories_last}')
 
     return text
 
@@ -592,7 +593,8 @@ async def create_text_days_eating(calories, id):
         calories_last = calories_norm - calories
         text = f'Сегодня вы поели на {calories}\nОсталось {calories_last}'
         if calories_last < 0:
-            text = f'Сегодня вы поели на {calories}\nВы переели на {-calories_last}'
+            text = (f'Сегодня вы поели на {calories}'
+                    f'\nВы переели на {-calories_last}')
 
     return text
 

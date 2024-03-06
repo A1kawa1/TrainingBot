@@ -255,8 +255,8 @@ async def create_InlineKeyboard_program(id):
     buttons = []
 
     buttons.append([InlineKeyboardButton(
-        text=f'Цель: похудеть c {target.cur_weight} кг до {
-            target.target_weight} кг',
+        text=(f'Цель: похудеть c {target.cur_weight} кг '
+              f'до {target.target_weight} кг'),
         callback_data='adfsgd'
     )])
     buttons.append([InlineKeyboardButton(
