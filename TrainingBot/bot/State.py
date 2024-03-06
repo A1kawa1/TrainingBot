@@ -9,3 +9,4 @@ class StateForm(StatesGroup):
     GET_CUR_DCI = State()
     GET_FOOD = State()
     GET_NEW_DAY_DCI = State()
+    GET_NEW_WEIGHT = State()

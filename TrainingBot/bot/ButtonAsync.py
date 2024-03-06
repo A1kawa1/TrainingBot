@@ -76,15 +76,32 @@ async def change_info(message, field, state, bot):
     id = message.chat.id
 
     if not await check_int(message.text):
-        await message.answer(
-            text='Вводите целое число, повторите попытку'
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите целое число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
         )
         return
+
     if int(message.text) <= 0:
-        await message.answer(
-            text='Вводите положительное число, повторите попытку'
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите положительное число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
         )
         return
+
+    await state.clear()
 
     info_user = await InfoUser.objects.aget(user=id)
     if field == 'age':
@@ -94,9 +111,9 @@ async def change_info(message, field, state, bot):
     await info_user.asave()
 
     await change_DCI_ideal_weight(message)
-    await state.clear()
 
-    await message.answer(
+    await bot.send_message(
+        chat_id=id,
         text='Укажите следующие данные',
         reply_markup=await create_InlineKeyboard_user_info(id)
     )
@@ -135,16 +152,31 @@ async def change_target_weight(message, field, state, bot):
 
     if not weight:
         await bot.send_message(
-            chat_id=message.chat.id,
+            chat_id=id,
             text='Вводите целое или дробное число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
         )
         return
+
     if weight <= 0:
         await bot.send_message(
-            chat_id=message.chat.id,
+            chat_id=id,
             text='Вводите положительное число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
         )
         return
+
+    await state.clear()
 
     target_user = await TargetUser.objects.filter(user=id).alast()
     if field == 'target_weight':
@@ -154,7 +186,6 @@ async def change_target_weight(message, field, state, bot):
     await target_user.asave()
 
     await change_DCI_ideal_weight(message)
-    await state.clear()
 
     markup = await create_InlineKeyboard_target(message)
 
@@ -226,21 +257,34 @@ async def change_cur_DCI(message, state, bot):
     if not await check_int(message.text):
         await bot.send_message(
             chat_id=id,
-            text='Вводите целое число, повторите попытку'
+            text='Вводите целое число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
         )
         return
+
     if int(message.text) <= 0:
         await bot.send_message(
             chat_id=id,
-            text='Вводите положительное число, повторите попытку'
+            text='Вводите положительное число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
         )
         return
+
+    await state.clear()
 
     target_user = await TargetUser.objects.filter(user=id).alast()
     target_user.cur_dci = int(message.text)
     await target_user.asave()
-
-    await state.clear()
 
     if await get_stage(id) in (3, 4):
         await update_stage_5(id, message, bot)
@@ -645,23 +689,36 @@ async def change_day_DCI(message, food_id, state, bot):
         if not await check_int(tmp[0]):
             await bot.send_message(
                 chat_id=id,
-                text='Вводите целое число, повторите попытку'
+                text='Вводите целое число, повторите попытку',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
             )
             return
 
         if int(tmp[0]) <= 0:
             await bot.send_message(
                 chat_id=id,
-                text='Вводите положительное число, повторите попытку'
+                text='Вводите положительное число, повторите попытку',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
             )
             return
+
+        await state.clear()
 
         food.calories = int(tmp[0])
         if len(tmp) > 1:
             food.name = ' '.join(tmp[1:])
 
         await food.asave()
-        await state.clear()
 
         next_stage, calories = await update_result_day_DCI(message)
 
@@ -681,6 +738,7 @@ async def change_day_DCI(message, food_id, state, bot):
         if next_stage == 'dci_success':
             await update_stage_5(id, message, bot)
             return
+
     except ObjectDoesNotExist:
         await bot.send_message(
             chat_id=id,
@@ -691,6 +749,75 @@ async def change_day_DCI(message, food_id, state, bot):
             chat_id=id,
             text='Неизвестная ошибка'
         )
+
+
+async def change_weight_in_program(message, state, bot):
+    id = message.chat.id
+
+    weight = await check_float(message.text)
+    if not weight:
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите целое или дробное число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
+        )
+        return
+
+    if weight <= 0:
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите положительное число, повторите попытку',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )
+            ]])
+        )
+        return
+
+    await state.clear()
+
+    user = await User.objects.aget(id=id)
+    target_user = await user.target.alast()
+
+    program_user = await UserProgram.objects.filter(target=target_user).alast()
+    program_user.cur_weight = round(weight, 1)
+
+    program_user.achievement = int((
+        (target_user.cur_weight - program_user.cur_weight) /
+        (target_user.cur_weight - target_user.target_weight)
+    ) * 100)
+    await program_user.asave()
+
+    cur_date = message.date
+
+    day_result, create = await ResultDayDci.objects.aget_or_create(
+        user=user,
+        date=cur_date
+    )
+
+    day_result.cur_weight = round(weight, 1)
+
+    if create == True:
+        day_result.deficit = program_user.cur_dci
+    await day_result.asave()
+
+    await bot.send_message(
+        chat_id=id,
+        text='Ваша программа',
+        reply_markup=await create_InlineKeyboard_program(id)
+    )
+
+    if program_user.achievement >= 100:
+        await template_send_message(bot, id, 'target_achieved')
+        target_user.achieved = True
+        await target_user.save()
 
 
 async def update_stage(id, bot, stage):

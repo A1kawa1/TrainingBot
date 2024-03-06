@@ -107,6 +107,10 @@ class Command(BaseCommand):
         food_id = state_data.get('food_id')
         await change_day_DCI(message, food_id, state, bot)
 
+    @dp.message(StateForm.GET_NEW_WEIGHT)
+    async def get_age(message: types.Message, state: FSMContext):
+        await change_weight_in_program(message, state, bot)
+
     @dp.message(FilterGetCalories(bot))
     async def calories(message):
         tmp = message.text.split()
@@ -669,6 +673,19 @@ class Command(BaseCommand):
                 if next_stage == 'dci_success':
                     await update_stage_5(id, call.message, bot)
                     return
+            elif call.data == 'change_weight_in_program':
+                await bot.edit_message_text(
+                    chat_id=id,
+                    message_id=call.message.message_id,
+                    text='Укажите ваш текущий вес',
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text='Закрыть',
+                            callback_data='close'
+                        )
+                    ]])
+                )
+                await state.set_state(StateForm.GET_NEW_WEIGHT)
 
         except ObjectDoesNotExist:
             await bot.send_message(
