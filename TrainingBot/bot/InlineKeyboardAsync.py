@@ -1,5 +1,6 @@
 ﻿from aiogram.types import (ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
                            InlineKeyboardButton, InlineKeyboardMarkup)
+from aiogram.types.web_app_info import WebAppInfo
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from bot.config import TYPE, ACTIVITY
@@ -95,7 +96,8 @@ async def create_InlineKeyboard_user_info(id):
         if text == 'Ваш идельный вес':
             buttons.append([InlineKeyboardButton(
                 text=f'{text} - {field[text][1]} {field[text][2]}',
-                url='https://alfagym.ru/wp-content/uploads/b/2/9/b2950dc181b1a619dc1075995da6f7f1.jpg'
+                web_app=WebAppInfo(
+                    url='https://alfagym.ru/wp-content/uploads/b/2/9/b2950dc181b1a619dc1075995da6f7f1.jpg')
             )])
         else:
             buttons.append([InlineKeyboardButton(
@@ -162,7 +164,8 @@ async def create_InlineKeyboard_target(message):
             if text == 'DCI':
                 buttons.append([InlineKeyboardButton(
                     text=f'{text} - {field[text][1]} {field[text][2]}',
-                    url='https://mosturnik.ru/wp-content/uploads/a/9/0/a90e1467657b49e550142394e234c4d6.jpeg'
+                    web_app=WebAppInfo(
+                        url='https://mosturnik.ru/wp-content/uploads/a/9/0/a90e1467657b49e550142394e234c4d6.jpeg')
                 )])
             else:
                 buttons.append([InlineKeyboardButton(
@@ -222,7 +225,8 @@ async def create_InlineKeyboard_guide(id):
     buttons_markup = []
     buttons_markup.append([InlineKeyboardButton(
         text='Пройти курс',
-        url=f'https://changeyourbody.ru/kak-schitat-kalorii'
+        web_app=WebAppInfo(
+            url='https://changeyourbody.ru/kak-schitat-kalorii')
     )])
 
     if await get_stage(id) == 2:
@@ -251,7 +255,8 @@ async def create_InlineKeyboard_program(id):
     buttons = []
 
     buttons.append([InlineKeyboardButton(
-        text=f'Цель: похудеть c {target.cur_weight} кг до {target.target_weight} кг',
+        text=f'Цель: похудеть c {target.cur_weight} кг до {
+            target.target_weight} кг',
         callback_data='adfsgd'
     )])
     buttons.append([InlineKeyboardButton(
