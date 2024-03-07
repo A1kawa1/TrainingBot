@@ -44,7 +44,7 @@ async def last_message(mesKey):
         buttons = [[
             InlineKeyboardButton(
                 text='Начать работу',
-                callback_data='login'
+                callback_data='get_time_zone'
             )
         ]]
     elif mesKey == 'stage1_last':

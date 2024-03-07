@@ -11,7 +11,7 @@ services:
   tg_bot:
     image: a1kawa/training_bot:latest
     restart: unless-stopped
-    command: sh -c "python manage.py migrate && python manage.py bot_async"
+    command: sh -c "python manage.py migrate && python bot_async.py"
     env_file:
       - .env
 

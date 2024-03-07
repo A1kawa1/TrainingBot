@@ -39,6 +39,7 @@ class User(models.Model):
     username = models.TextField(blank=True, null=True)
     guid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     datetime_start = models.DateTimeField()
+    offset = models.IntegerField(blank=True, null=True, default=0)
 
 
 class UserFood(models.Model):

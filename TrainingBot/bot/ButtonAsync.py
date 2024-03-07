@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+﻿from datetime import timedelta, datetime, timezone
 from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -23,6 +23,57 @@ async def check_float(x):
         return y
     except:
         return False
+
+
+async def get_user_datetime(offset=None, utc_datetime=None, user=None):
+    if utc_datetime is None:
+        return datetime.now(timezone(timedelta(hours=offset)))
+    else:
+        offset = user.offset
+        return utc_datetime + timedelta(hours=offset)
+
+
+async def get_time_zone(message, state, bot):
+    id = message.chat.id
+
+    if not await check_int(message.text):
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите целое число, повторите попытку'
+        )
+        return
+
+    if int(message.text) <= 0:
+        await bot.send_message(
+            chat_id=id,
+            text='Вводите положительное число, повторите попытку'
+        )
+        return
+
+    await state.clear()
+
+    user = await User.objects.aget(id=id)
+    user.offset = int(message.text)
+    await user.asave()
+
+    cur_time = await get_user_datetime(offset=int(message.text))
+    cur_time = cur_time.strftime("%d.%m %H:%M")
+    buttons = [[
+        InlineKeyboardButton(
+            text='Да',
+            callback_data='right_time_zone'
+        ),
+        InlineKeyboardButton(
+            text='Нет',
+            callback_data='wrong_time_zone'
+        )
+    ]]
+
+    await bot.send_message(
+        chat_id=id,
+        text=f'У вас сейчас {cur_time}?',
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+    )
 
 
 async def get_ideal_DCI(inf):
@@ -297,9 +348,12 @@ async def change_cur_DCI(message, state, bot):
 
 
 async def create_program(id, message, for_cur_target=False):
-    cur_date = message.date
-
     user = await User.objects.aget(id=id)
+    cur_date = await get_user_datetime(
+        utc_datetime=message.date,
+        user=user
+    )
+
     target = await user.target.alast()
     cur_dci = target.cur_dci
     dci = target.dci
@@ -407,8 +461,11 @@ async def get_food(message, state, bot):
 
 async def send_yesterday_remind(id, message, bot):
     if await get_stage(id) == 5:
-        cur_time = message.date
         user = await User.objects.aget(id=id)
+        cur_time = await get_user_datetime(
+            utc_datetime=message.date,
+            user=user
+        )
 
         len_day_food = await user.day_food.filter(
             time__year=cur_time.year,
@@ -464,14 +521,14 @@ async def update_normal_dci(user, user_program, user_target, cur_date):
 
     if ((user_program.cur_day - user_program.phase1) == 1
             and user_program.cur_dci != int(dci * (1 - user_target.percentage_decrease / 100))):
-        user_program.cur_dci = get_normal_dci(
+        user_program.cur_dci = await get_normal_dci(
             user.id, user_program.phase1, user_program.cur_day)
     else:
         len_result_day_dci = await user.result_day_dci.filter(date=cur_date).acount()
         if (len_result_day_dci == 0
             and user_program.cur_day != 1
                 and user_program.phase1 != 0):
-            user_program.cur_dci = get_normal_dci(
+            user_program.cur_dci = await get_normal_dci(
                 user.id, user_program.phase1, user_program.cur_day)
 
     await user_program.asave()
@@ -548,9 +605,11 @@ async def check_variance(id):
 
 async def update_result_day_DCI(message):
     id = message.chat.id
-
-    cur_time = message.date
     user = await User.objects.aget(id=id)
+    cur_time = await get_user_datetime(
+        utc_datetime=message.date,
+        user=user
+    )
     remind = await user.remind.alast()
 
     calories = await user.day_food.filter(
@@ -649,10 +708,19 @@ async def add_from_menu_day_DCI(call, bot):
     name, calories = msg.split('_')
     if name == 'None':
         name = None
-    data = (int(calories), call.message.chat.id, call.message.date)
+
+    id = call.message.chat.id
+    user = await User.objects.aget(id=id)
+
+    cur_date = await get_user_datetime(
+        utc_datetime=call.message.date,
+        user=user
+    )
+
+    data = (int(calories), id, cur_date)
 
     food_user = UserDayFood(
-        user=await User.objects.aget(id=data[1]),
+        user=user,
         name=name,
         calories=data[0],
         time=data[2]
@@ -729,10 +797,17 @@ async def change_day_DCI(message, food_id, state, bot):
 
         text = await create_text_days_eating(calories, id)
 
+        user = await User.objects.aget(id=id)
+
+        cur_date = await get_user_datetime(
+            utc_datetime=message.date,
+            user=user
+        )
+
         await bot.send_message(
             chat_id=id,
             text=text,
-            reply_markup=await create_InlineKeyboard_day_food(id, message.date)
+            reply_markup=await create_InlineKeyboard_day_food(id, cur_date)
         )
 
         if next_stage == 'dci_success':
@@ -795,7 +870,10 @@ async def change_weight_in_program(message, state, bot):
     ) * 100)
     await program_user.asave()
 
-    cur_date = message.date
+    cur_date = await get_user_datetime(
+        utc_datetime=message.date,
+        user=user
+    )
 
     day_result, create = await ResultDayDci.objects.aget_or_create(
         user=user,
