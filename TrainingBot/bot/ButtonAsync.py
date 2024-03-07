@@ -898,6 +898,68 @@ async def change_weight_in_program(message, state, bot):
         await target_user.save()
 
 
+async def change_week_eating(message, eating_id, state, bot):
+    try:
+        id = message.chat.id
+        user = await User.objects.aget(id=id)
+        eating = await ResultDayDci.objects.aget(id=eating_id)
+
+        if not await check_int(message.text):
+            await bot.send_message(
+                chat_id=id,
+                text='Вводите целое число, повторите попытку',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
+            )
+            return
+
+        if int(message.text) <= 0:
+            await bot.send_message(
+                chat_id=id,
+                text='Вводите положительное число, повторите попытку',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
+            )
+            return
+
+        await state.clear()
+
+        eating.deficit += eating.calories - int(message.text)
+        eating.calories = int(message.text)
+        await eating.asave()
+
+        cur_date = await get_user_datetime(
+            utc_datetime=message.date,
+            user=user
+        )
+        cur_date = cur_date.date()
+
+        await bot.send_message(
+            chat_id=id,
+            text='Приемы пищи за последние 7 дней',
+            reply_markup=await create_InlineKeyboard_week_eating(user, message, cur_date)
+        )
+
+    except ObjectDoesNotExist:
+        await bot.send_message(
+            chat_id=id,
+            text='Запись была удалена',
+        )
+    except Exception:
+        await bot.send_message(
+            chat_id=id,
+            text='Неизвестная ошибка'
+        )
+
+
 async def update_stage(id, bot, stage):
     user_stage_guide = await UserStageGuide.objects.aget(user=id)
     user_stage_guide.stage = stage

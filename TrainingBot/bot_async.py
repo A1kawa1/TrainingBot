@@ -13,9 +13,9 @@ from bot.SqlQueryAsync import *
 from bot.SendMessageAsync import *
 from bot.InlineKeyboardAsync import *
 from bot.ButtonAsync import *
+from bot.FilterAsync import *
 from bot.State import StateForm
 from bot.config import TYPE
-from bot.FilterAsync import FilterGetCalories
 
 
 bot = Bot(token=TOKEN)
@@ -63,58 +63,62 @@ async def start(message: types.Message):
     await template_send_message(bot, id, 'start')
     await template_send_message(bot, id, 'start_last')
 
-    # user_stage_guide.stage = 0
-    # await user_stage_guide.asave()
 
-
-@dp.message(StateForm.GET_AGE)
+@dp.message(StateForm.GET_AGE, FilterKeyboardButton())
 async def get_age(message: types.Message, state: FSMContext):
     await change_info(message, 'age', state, bot)
 
 
-@dp.message(StateForm.GET_HEIGHT)
+@dp.message(StateForm.GET_HEIGHT, FilterKeyboardButton())
 async def get_height(message: types.Message, state: FSMContext):
     await change_info(message, 'height', state, bot)
 
 
-@dp.message(StateForm.GET_TARGET_WEIGHT)
+@dp.message(StateForm.GET_TARGET_WEIGHT, FilterKeyboardButton())
 async def get_target_weight(message: types.Message, state: FSMContext):
     await change_target_weight(message, 'target_weight', state, bot)
 
 
-@dp.message(StateForm.GET_CUR_WEIGHT)
+@dp.message(StateForm.GET_CUR_WEIGHT, FilterKeyboardButton())
 async def get_cur_weight(message: types.Message, state: FSMContext):
     await change_target_weight(message, 'cur_weight', state, bot)
 
 
-@dp.message(StateForm.GET_CUR_DCI)
+@dp.message(StateForm.GET_CUR_DCI, FilterKeyboardButton())
 async def get_cur_dci(message: types.Message, state: FSMContext):
     await change_cur_DCI(message, state, bot)
 
 
-@dp.message(StateForm.GET_FOOD)
+@dp.message(StateForm.GET_FOOD, FilterKeyboardButton())
 async def get_new_food(message: types.Message, state: FSMContext):
     await get_food(message, state, bot)
 
 
-@dp.message(StateForm.GET_NEW_DAY_DCI)
+@dp.message(StateForm.GET_NEW_DAY_DCI, FilterKeyboardButton())
 async def get_new_day_dci(message: types.Message, state: FSMContext):
     state_data = await state.get_data()
     food_id = state_data.get('food_id')
     await change_day_DCI(message, food_id, state, bot)
 
 
-@dp.message(StateForm.GET_NEW_WEIGHT)
+@dp.message(StateForm.GET_NEW_WEIGHT, FilterKeyboardButton())
 async def get_weight_in_program(message: types.Message, state: FSMContext):
     await change_weight_in_program(message, state, bot)
 
 
-@dp.message(StateForm.GET_TIME_ZONE)
+@dp.message(StateForm.GET_TIME_ZONE, FilterKeyboardButton())
 async def get_user_tz(message: types.Message, state: FSMContext):
     await get_time_zone(message, state, bot)
 
 
-@dp.message(FilterGetCalories(bot))
+@dp.message(StateForm.GET_NEW_WEEK_EATING, FilterKeyboardButton())
+async def get_new_week_eating(message: types.Message, state: FSMContext):
+    state_data = await state.get_data()
+    eating_id = state_data.get('eating_id')
+    await change_week_eating(message, eating_id, state, bot)
+
+
+@dp.message(FilterGetCalories(bot), FilterKeyboardButton())
 async def calories(message: types.Message):
     tmp = message.text.split()
     id_first = -1
@@ -180,6 +184,7 @@ async def calories(message: types.Message):
 @dp.message(F.text)
 async def button_text(message: types.Message, state: FSMContext):
     try:
+        await state.clear()
         id = message.chat.id
 
         if id not in await get_user('id'):
@@ -356,7 +361,8 @@ async def button_text(message: types.Message, state: FSMContext):
             cur_date = await get_user_datetime(
                 utc_datetime=message.date,
                 user=user
-            ).date()
+            )
+            cur_date = cur_date.date()
 
             user_program = await user.program.alast()
             user_target = await user.target.alast()
@@ -383,6 +389,19 @@ async def button_text(message: types.Message, state: FSMContext):
                 chat_id=id,
                 text=('Ваша программа'),
                 reply_markup=await create_InlineKeyboard_program(id)
+            )
+        elif message.text == 'Статистика за неделю':
+            user = await User.objects.aget(id=id)
+            cur_date = await get_user_datetime(
+                utc_datetime=message.date,
+                user=user
+            )
+            cur_date = cur_date.date()
+
+            await bot.send_message(
+                chat_id=id,
+                text='Приемы пищи за последние 7 дней',
+                reply_markup=await create_InlineKeyboard_week_eating(user, message, cur_date)
             )
 
     except ObjectDoesNotExist:
@@ -778,6 +797,25 @@ async def callback_query(call: types.CallbackQuery, state: FSMContext):
                 ]])
             )
             await state.set_state(StateForm.GET_NEW_WEIGHT)
+        elif call.data.startswith('edit_week_eating_'):
+            eating_id = int(call.data[17:])
+            record = await ResultDayDci.objects.aget(id=eating_id)
+            date = record.date
+
+            await bot.edit_message_text(
+                chat_id=id,
+                message_id=call.message.message_id,
+                text=f'{date.strftime("%d:%m:%Y")}\nВведите новое количество калорий',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
+            )
+
+            await state.set_state(StateForm.GET_NEW_WEEK_EATING)
+            await state.set_data({'eating_id': eating_id})
 
     except ObjectDoesNotExist:
         await bot.send_message(

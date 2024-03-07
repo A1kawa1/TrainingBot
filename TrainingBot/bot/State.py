@@ -11,3 +11,4 @@ class StateForm(StatesGroup):
     GET_FOOD = State()
     GET_NEW_DAY_DCI = State()
     GET_NEW_WEIGHT = State()
+    GET_NEW_WEEK_EATING = State()

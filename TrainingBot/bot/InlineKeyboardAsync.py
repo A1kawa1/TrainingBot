@@ -2,6 +2,7 @@
                            InlineKeyboardButton, InlineKeyboardMarkup)
 from aiogram.types.web_app_info import WebAppInfo
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from datetime import timedelta
 
 from bot.config import TYPE, ACTIVITY
 from bot.SqlQueryAsync import *
@@ -263,12 +264,6 @@ async def create_InlineKeyboard_program(id):
         text=f'Дата начала: {program.date_start}',
         callback_data='adfsgd'
     )])
-    # markup.add(
-    #     telebot.types.InlineKeyboardButton(
-    #         text=f'Рацион в начале: {program.start_dci} кКл',
-    #         callback_data='adfsgd'
-    #     )
-    # )
     buttons.append([InlineKeyboardButton(
         text=f'Норма потребления: {target.dci} кКл',
         callback_data='adfsgd'
@@ -389,6 +384,33 @@ async def create_InlineKeyboard_detail_day_food(food_id):
         text='Назад',
         callback_data='back_day_food'
     )])
+    buttons.append([InlineKeyboardButton(
+        text='Закрыть',
+        callback_data='close'
+    )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def create_InlineKeyboard_week_eating(user, message, cur_date):
+    data = user.result_day_dci.all().order_by('-date')
+    buttons = []
+    start_date = (cur_date - timedelta(days=7))
+
+    async for el in data:
+        el_date = el.date
+        if el_date >= start_date and el_date != cur_date:
+            buttons.append([InlineKeyboardButton(
+                text=f'{el_date.strftime("%d:%m:%Y")} - {el.calories}, {el.deficit if el.calories != 0 else "—"}',
+                callback_data=f'edit_week_eating_{el.id}'
+            )])
+
+    if not buttons:
+        buttons.append([InlineKeyboardButton(
+            text='У вас нет других приемов пищи',
+            callback_data='adfsgd'
+        )])
+
     buttons.append([InlineKeyboardButton(
         text='Закрыть',
         callback_data='close'
