@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from TrainingBot.wsgi import *
 from TrainingBot.settings import TOKEN
@@ -20,9 +21,13 @@ from bot.config import TYPE
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
+scheduler = AsyncIOScheduler()
 
 
 async def main():
+    scheduler.add_job(send_remind, 'cron', minute=0,
+                      kwargs={'bot': bot}, next_run_time=datetime.now())
+    scheduler.start()
     await dp.start_polling(bot)
 
 
@@ -188,7 +193,6 @@ async def button_text(message: types.Message, state: FSMContext):
         id = message.chat.id
 
         if id not in await get_user('id'):
-            print('not user')
             # start(message)
             '''
 
