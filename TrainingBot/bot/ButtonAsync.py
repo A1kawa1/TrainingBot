@@ -1,11 +1,12 @@
-﻿from datetime import timedelta, datetime, timezone
+﻿from datetime import timedelta
 from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
 
 from bot.InlineKeyboardAsync import *
 from bot.config import *
-from bot.SendMessageAsync import *
+from bot.auxiliary import *
 from model.models import *
+from bot.SendMessageAsync import template_send_message
 
 
 async def check_int(x):
@@ -23,14 +24,6 @@ async def check_float(x):
         return y
     except:
         return False
-
-
-async def get_user_datetime(offset=None, utc_datetime=None, user=None):
-    if utc_datetime is None:
-        return datetime.now(timezone(timedelta(hours=offset)))
-    else:
-        offset = user.offset
-        return utc_datetime + timedelta(hours=offset)
 
 
 async def get_time_zone(message, state, bot):
@@ -497,23 +490,6 @@ async def send_yesterday_remind(id, message, bot):
                     chat_id=id,
                     text=mes
                 )
-
-
-async def get_normal_dci(id, phase1, cur_day):
-    user = await User.objects.aget(id=id)
-    user_target = await user.target.alast()
-
-    if cur_day > phase1:
-        return user_target.dci * (1 - user_target.percentage_decrease / 100)
-    else:
-        if cur_day % 7 == 0:
-            number_week = cur_day // 7
-        else:
-            number_week = cur_day // 7 + 1
-        tmp = user_target.cur_dci - 100 * number_week
-        if tmp < user_target.dci:
-            tmp = user_target.dci
-        return tmp
 
 
 async def update_normal_dci(user, user_program, user_target, cur_date):

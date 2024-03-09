@@ -401,7 +401,8 @@ async def create_InlineKeyboard_week_eating(user, message, cur_date):
         el_date = el.date
         if el_date >= start_date and el_date != cur_date:
             buttons.append([InlineKeyboardButton(
-                text=f'{el_date.strftime("%d:%m:%Y")} - {el.calories}, {el.deficit if el.calories != 0 else "—"}',
+                text=(f'{el_date.strftime("%d:%m:%Y")} - {el.calories}, '
+                      f'{el.deficit if el.calories != 0 else "—"}'),
                 callback_data=f'edit_week_eating_{el.id}'
             )])
 

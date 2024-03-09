@@ -6,15 +6,17 @@ from aiogram.filters.command import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import logging
 
 from TrainingBot.wsgi import *
 from TrainingBot.settings import TOKEN
 from model.models import *
 from bot.SqlQueryAsync import *
-from bot.SendMessageAsync import *
+from bot.auxiliary import *
 from bot.InlineKeyboardAsync import *
 from bot.ButtonAsync import *
 from bot.FilterAsync import *
+from bot.SendMessageAsync import send_remind, template_send_message
 from bot.State import StateForm
 from bot.config import TYPE
 
@@ -22,6 +24,8 @@ from bot.config import TYPE
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 scheduler = AsyncIOScheduler()
+logging.basicConfig(level=logging.INFO, filename='py_log.log', filemode='a',
+                    format='%(asctime)s %(levelname)s %(message)s')
 
 
 async def main():
@@ -193,30 +197,23 @@ async def button_text(message: types.Message, state: FSMContext):
         id = message.chat.id
 
         if id not in await get_user('id'):
-            # start(message)
-            '''
-
-
-            хз че с областью видимости
-
-
-            '''
+            await start(message)
         elif message.text == 'Сброс':
-            ...
-            # markup = telebot.types.InlineKeyboardMarkup()
-            # markup.add(telebot.types.InlineKeyboardButton(
-            #     text='Подтвердить',
-            #     callback_data='delete_profile'
-            # ))
-            # markup.add(telebot.types.InlineKeyboardButton(
-            #     text='Закрыть',
-            #     callback_data='close'
-            # ))
-            # bot.send_message(
-            #     chat_id=id,
-            #     text='Подтвердите сброс аккаунта',
-            #     reply_markup=markup
-            # )
+            buttons = [
+                [InlineKeyboardButton(
+                    text='Подтвердить',
+                    callback_data='delete_profile'
+                )],
+                [InlineKeyboardButton(
+                    text='Закрыть',
+                    callback_data='close'
+                )]
+            ]
+            await bot.send_message(
+                chat_id=id,
+                text='Подтвердите сброс аккаунта',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+            )
         elif message.text == 'Мои данные':
             await bot.send_message(
                 chat_id=id,
@@ -414,7 +411,7 @@ async def button_text(message: types.Message, state: FSMContext):
             text='Запись была удалена'
         )
     except Exception as e:
-        print(e)
+        logging.exception(e)
         await bot.send_message(
             chat_id=id,
             text='Неизвестная ошибка'
@@ -432,14 +429,11 @@ async def callback_query(call: types.CallbackQuery, state: FSMContext):
                 message_id=call.message.message_id
             )
         elif id not in await get_user('id'):
-            # start(call.message)
-            '''
-
-
-            хз че с областью видимости
-
-
-            '''
+            await start(call.message)
+        elif call.data == 'delete_profile':
+            user = await User.objects.aget(id=id)
+            await user.adelete()
+            await start(call.message)
         elif call.data == 'get_time_zone':
             if await get_stage(id) != -1:
                 await bot.send_message(
@@ -809,7 +803,8 @@ async def callback_query(call: types.CallbackQuery, state: FSMContext):
             await bot.edit_message_text(
                 chat_id=id,
                 message_id=call.message.message_id,
-                text=f'{date.strftime("%d:%m:%Y")}\nВведите новое количество калорий',
+                text=(f'{date.strftime("%d:%m:%Y")}'
+                      f'\nВведите новое количество калорий'),
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
                     InlineKeyboardButton(
                         text='Закрыть',
@@ -827,7 +822,7 @@ async def callback_query(call: types.CallbackQuery, state: FSMContext):
             text='Запись была удалена'
         )
     except Exception as e:
-        print(e)
+        logging.exception(e)
         await bot.send_message(
             chat_id=id,
             text='Неизвестная ошибка'

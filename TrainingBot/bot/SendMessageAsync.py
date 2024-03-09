@@ -2,7 +2,7 @@ from datetime import time, datetime, timezone
 from django.db.models import Q
 
 from model.models import *
-from bot.ButtonAsync import get_user_datetime, get_normal_dci
+from bot.auxiliary import *
 from bot.InlineKeyboardAsync import create_keyboard_stage, last_message
 
 
