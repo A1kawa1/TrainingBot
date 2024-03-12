@@ -15,36 +15,11 @@ git clone https://github.com/A1kawa1/TrainingBot.git
 cd TrainingBot
 ```
 
-Create and activate a virtual environment:
+`Create a file .env in the directory at the docker-compose level.yaml in the likeness of example.env`  
 
-```
-python3 -m venv env
-```
-
-```
-source env/scripts/activate
-```
-
-```
-python3 -m pip install --upgrade pip
-```
-
-Install dependencies from a file requirements.txt:
-
-```
-pip install -r requirements.txt
-```
-
-Perform migrations:
-
-
-```
-python3 manage.py migrate
-```
-
-`Also create an .env file in the /TrainingBot directory and specify the data for postgresql and the bot token.`  
 Launch a project:
 
 ```
-python3 manage.py bot
+docker build -t <nickname>/training_bot:latest
+docker compose up -d
 ```

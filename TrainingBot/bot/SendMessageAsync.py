@@ -122,6 +122,7 @@ async def send_remind(bot):
 
 async def check_remind(cur_time, user):
     remind = await user.remind.alast()
+    user_stage = await user.stage.alast()
     remind_first = remind.remind_first
     remind_second = remind.remind_second
     day_without_indication_weight = remind.day_without_indication_weight
@@ -141,5 +142,5 @@ async def check_remind(cur_time, user):
     if (cur_time.time() > time(hour=19, minute=0, second=0)
         and cur_time.time() < time(hour=21, minute=0, second=0)
         and remind_second == True
-            and user.stage.last().stage == 5):
+            and user_stage.stage == 5):
         return 'send_second'
