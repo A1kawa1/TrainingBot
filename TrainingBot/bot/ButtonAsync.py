@@ -432,6 +432,9 @@ async def get_food(message, state, bot):
         if not await check_int(calories):
             continue
 
+        if int(calories) <= 0:
+            continue
+
         count_success += 1
         user = await User.objects.aget(id=id)
         await UserFood.objects.aget_or_create(
@@ -443,7 +446,7 @@ async def get_food(message, state, bot):
     if not count_success:
         await bot.send_message(
             chat_id=id,
-            text='Мы не смогли распознать ни одного блюда. Попробуйте еще раз',
+            text='Мы не смогли распознать ни одного блюда (калории должны быть положительными). Попробуйте еще раз',
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
                 InlineKeyboardButton(
                     text='Закрыть',
