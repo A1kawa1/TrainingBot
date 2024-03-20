@@ -159,10 +159,17 @@ async def calories(message: types.Message):
                     message.from_user.id)
         except:
             await bot.send_message(
-                chat_id=message.from_user.id,
+                chat_id=data[1],
                 text=f'Простите, но мы не смогли распознать ваши данные'
             )
             return
+
+    if data[0] <= 0:
+        await bot.send_message(
+            chat_id=data[1],
+            text=f'Указывайте положительное количество калорий'
+        )
+        return
 
     user = await User.objects.aget(id=data[1])
     food_user = UserDayFood(

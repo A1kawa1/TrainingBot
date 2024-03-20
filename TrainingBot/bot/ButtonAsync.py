@@ -132,18 +132,32 @@ async def change_info(message, field, state, bot):
         )
         return
 
-    if int(message.text) <= 0:
-        await bot.send_message(
-            chat_id=id,
-            text='Вводите положительное число, повторите попытку',
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(
-                    text='Закрыть',
-                    callback_data='close'
-                )
-            ]])
-        )
-        return
+    if field == 'age':
+        if int(message.text) <= 5 or int(message.text) > 300:
+            await bot.send_message(
+                chat_id=id,
+                text='Вводите число больше 5 и меньше 300, повторите попытку',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
+            )
+            return
+    elif field == 'height':
+        if int(message.text) <= 30 or int(message.text) > 1000:
+            await bot.send_message(
+                chat_id=id,
+                text='Вводите число больше 30 и меньше 1000, повторите попытку',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text='Закрыть',
+                        callback_data='close'
+                    )
+                ]])
+            )
+            return
 
     await state.clear()
 
@@ -207,10 +221,10 @@ async def change_target_weight(message, field, state, bot):
         )
         return
 
-    if weight <= 0:
+    if weight <= 20 or weight > 1000:
         await bot.send_message(
             chat_id=id,
-            text='Вводите положительное число, повторите попытку',
+            text='Вводите число больше 20 и меньше 1000, повторите попытку',
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
                 InlineKeyboardButton(
                     text='Закрыть',

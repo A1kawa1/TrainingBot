@@ -20,6 +20,8 @@ cd TrainingBot
 Launch a project:
 
 ```
-docker build -t <nickname>/training_bot:latest
+docker build -t a1kawa/training_bot:latest .  
+docker push a1kawa/training_bot:latest  
+
 docker compose up -d
 ```
